@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "./client",
+    "outDir": "./dist/.client-types",
+    "tsBuildInfoFile": "./dist/.client-types/.tsbuildinfo",
+
+    // 클라이언트는 Vite 가 번들합니다. 서버(NodeNext)와 해석 규칙이 다릅니다.
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "types": ["vite/client"],
+
+    // 타입 검사만 하고 산출물은 Vite 가 만듭니다.
+    "noEmit": false,
+    "emitDeclarationOnly": true
+  },
+  "include": ["client/**/*.ts", "client/**/*.tsx"],
+  "exclude": ["dist"]
+}

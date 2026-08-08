@@ -1,0 +1,16 @@
+{
+  "name": "@healing/omr-worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "이미지 인식 워커. Audiveris 를 CLI 로만 호출합니다. (내용은 P3)",
+  "scripts": {
+    "build": "tsc -b tsconfig.json",
+    "typecheck": "tsc -b tsconfig.json",
+    "start": "node dist/index.js"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "typescript": "^5.7.3"
+  }
+}

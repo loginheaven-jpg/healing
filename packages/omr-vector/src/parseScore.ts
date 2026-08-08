@@ -1,0 +1,352 @@
+/**
+ * 6단계: 전체 파이프라인을 잇는 진입점.
+ *
+ * extractPdfGeometry → detectStaves → groupIntoSystems → parseNotesOnStaff
+ * → detectLayout → splitVoices → 이상 검출 → ParseResult
+ *
+ * 여러 시스템(악보 줄)과 여러 페이지를 하나의 연속된 곡으로 이어붙이는
+ * 것이 이 파일의 또 다른 역할이다. 마디 번호를 전역으로 매겨야 한다.
+ */
+
+import { detectBarlines, parseNotesOnStaff, toTimedEvents, unifyBarlines, type TimedEvent } from "./noteParse.js";
+import { extractPdfGeometry, type PageGeometry } from "./pdfExtract.js";
+import { assignClefs, detectStaves } from "./staffDetect.js";
+import { groupIntoSystems, readKeySignature, readTimeSignature } from "./systemGroup.js";
+import type { LayoutType, Note, Part, ParseResult, Staff, Warning } from "./types.js";
+import {
+  PART_ORDER,
+  checkMeasureDurations,
+  checkPartBalance,
+  detectLayout,
+  normalizeOctave,
+  splitClosedScore,
+  splitOpenScore,
+} from "./voiceSplit.js";
+
+export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
+  const t0 = Date.now();
+  const extracted = await extractPdfGeometry(data);
+  const warnings: Warning[] = [];
+
+  if (!extracted.isVector) {
+    throw new VectorParseUnavailable(extracted.vectorReason);
+  }
+
+  if (extracted.pages.length > 1) {
+    warnings.push({
+      code: "MULTI_PAGE",
+      severity: "info",
+      message: `${extracted.pages.length}페이지 악보입니다. 페이지 경계에서 마디가 이어지는지 확인해 주세요.`,
+      detail: { pageCount: extracted.pages.length },
+    });
+  }
+
+  // 미등록 글리프 집계
+  const unknownAll = Array.from(
+    new Set(extracted.pages.flatMap(p => p.unknownGlyphNames))
+  );
+  if (unknownAll.length > 0) {
+    warnings.push({
+      code: "UNKNOWN_GLYPH",
+      severity: "info",
+      message: `해석하지 못한 악보 기호가 ${unknownAll.length}종 있습니다: ${unknownAll.slice(0, 8).join(", ")}. 해당 기호는 무시되었습니다.`,
+      detail: { names: unknownAll },
+    });
+  }
+
+  /* 가사 폰트를 읽지 못한 경우.
+     깨진 글자를 보여주는 대신 가사를 비웠다는 사실을 알려야 한다.
+     이유를 모르면 사용자는 "가사가 없는 앱"으로 오해한다. */
+  const untrustedFonts = Array.from(
+    new Set(extracted.pages.flatMap(p => p.untrustedTextFonts))
+  ).filter(Boolean);
+  if (untrustedFonts.length > 0) {
+    warnings.push({
+      code: "LYRICS_UNREADABLE",
+      severity: "info",
+      message:
+        "이 PDF에는 글자 정보(ToUnicode)가 없어 가사를 읽지 못했습니다. 음표와 연주는 정상입니다. 악보 프로그램에서 다시 내보낼 때 글자 정보를 포함하면 가사도 표시됩니다.",
+      detail: { fonts: untrustedFonts },
+    });
+  }
+
+  const parts: Record<Part, Note[]> = { Soprano: [], Alto: [], Tenor: [], Bass: [] };
+  const lyrics: { m: number; b: number; text: string }[] = [];
+
+  let globalMeasureOffset = 0;
+  let layout: LayoutType = "unknown";
+  // 3단 악보에서 반주 오선을 제외할 때 쓸 오선 인덱스 (지정 없으면 전부)
+  let useStaves: number[] | undefined;
+  let keyFifths = 0;
+  let timeSignature = { numerator: 4, denominator: 4 };
+  let timeSigConfident = false;
+  let firstSystemSeen = false;
+
+  for (const page of extracted.pages) {
+    const bare = detectStaves(page.hLines, page.width);
+    if (bare.length === 0) continue;
+
+    const { clefs, unrecognized } = assignClefs(bare, page.glyphs, page.texts);
+    if (unrecognized.length > 0 && !firstSystemSeen) {
+      warnings.push({
+        code: "CLEF_UNRECOGNIZED",
+        severity: "warn",
+        message: `${unrecognized.length}개 오선의 음자리표를 읽지 못해 위치로 추정했습니다. 음높이가 옥타브 단위로 틀릴 수 있습니다.`,
+        detail: { staffIndexes: unrecognized },
+      });
+    }
+
+    const staves: Staff[] = bare.map((s, i) => {
+      const st: Staff = { ...s, clef: clefs[i], keyAlters: {}, keyFifths: 0 };
+      const k = readKeySignature(st, page.glyphs);
+      st.keyFifths = k.fifths;
+      st.keyAlters = k.alters;
+      return st;
+    });
+
+    const systems = groupIntoSystems(staves, page.vLines);
+
+    for (const sys of systems) {
+      const sysStaves = sys.staves;
+
+      // 첫 시스템에서 조·박자·구조를 확정한다
+      if (!firstSystemSeen) {
+        keyFifths = sysStaves[0].keyFifths;
+        const ts = readTimeSignature(page.glyphs, sysStaves[0]);
+        timeSignature = { numerator: ts.numerator, denominator: ts.denominator };
+        timeSigConfident = ts.confident;
+      }
+
+      // 시스템 내 마디선 통합
+      const perStaffBars = sysStaves.map(st => detectBarlines(page.vLines, st));
+      const bars = unifyBarlines(perStaffBars, sysStaves[0].spacing);
+
+      // 오선별 음표 → 이벤트
+      const eventsPerStaff: TimedEvent[][] = sysStaves.map((st, i) => {
+        // 이웃 오선의 경계를 넘겨 음표 흡수를 막는다.
+        // 오선은 위에서 아래 순서이므로 i-1이 위, i+1이 아래다.
+        const above =
+          i > 0
+            ? { bottomY: sysStaves[i - 1].bottomY, topY: sysStaves[i - 1].topY }
+            : undefined;
+        const below =
+          i + 1 < sysStaves.length
+            ? { bottomY: sysStaves[i + 1].bottomY, topY: sysStaves[i + 1].topY }
+            : undefined;
+        const notes = parseNotesOnStaff(st, i, page.glyphs, page.rects, bars, { above, below });
+        return toTimedEvents(notes, st.spacing);
+      });
+
+      // 구조 판별 (첫 시스템 기준으로 고정)
+      if (!firstSystemSeen) {
+        const det = detectLayout(sysStaves, eventsPerStaff);
+        layout = det.layout;
+        useStaves = det.useStaves;
+        warnings.push(...det.warnings);
+        firstSystemSeen = true;
+      }
+
+      // 마디 번호를 전역으로 이동
+      const shifted = eventsPerStaff.map(evs =>
+        evs.map(e => ({ ...e, measure: e.measure + globalMeasureOffset }))
+      );
+
+      // 성부 분리
+      let split: { parts: Record<Part, Note[]>; warnings: Warning[] };
+      /*
+       * useStaves가 지정되면 그 오선만 성부로 쓴다. 3단 악보에서
+       * 반주 오선을 제외하기 위한 것이다(detectLayout 참조).
+       */
+      const vocal = useStaves ? useStaves.map(i => shifted[i] ?? []) : shifted;
+      const vocalStaves = useStaves ? useStaves.map(i => sysStaves[i]) : sysStaves;
+      if (layout === "closed-2staff") {
+        split = splitClosedScore(vocal[0] ?? [], vocal[1] ?? []);
+      } else if (layout === "open-4staff" || layout === "mixed-3staff") {
+        split = splitOpenScore(vocalStaves, vocal);
+      } else {
+        // 단성부: 소프라노로만 넣는다
+        const parts0: Record<Part, Note[]> = { Soprano: [], Alto: [], Tenor: [], Bass: [] };
+        for (const e of vocal[0] ?? []) {
+          const hi = [...e.notes].sort((a, b) => b.midi - a.midi)[0];
+          if (hi) parts0.Soprano.push({ m: e.measure, b: e.beat, d: e.duration, p: hi.midi });
+        }
+        split = { parts: parts0, warnings: [] };
+      }
+
+      for (const p of PART_ORDER) parts[p].push(...split.parts[p]);
+      // 시스템별 반복 경고는 첫 시스템만 채택 (같은 경고가 줄마다 쌓이는 것 방지)
+      if (globalMeasureOffset === 0) warnings.push(...split.warnings);
+
+      // 가사 추출
+      lyrics.push(...extractLyrics(page, sys.staves, shifted, globalMeasureOffset));
+
+      // 다음 시스템의 마디 번호 시작점
+      const maxM = Math.max(
+        globalMeasureOffset,
+        ...shifted.flatMap(evs => evs.map(e => e.measure))
+      );
+      globalMeasureOffset = maxM;
+    }
+  }
+
+  if (!timeSigConfident) {
+    warnings.push({
+      code: "MEASURE_DURATION_MISMATCH",
+      severity: "info",
+      message: "박자표를 찾지 못해 4/4로 가정했습니다. 다른 박자라면 재생 속도가 어긋날 수 있습니다.",
+    });
+  }
+
+  // 옥타브 정규화
+  const normalized = normalizeOctave(parts);
+  warnings.push(...normalized.warnings);
+
+  // 이상 검출 게이트
+  warnings.push(...checkPartBalance(normalized.parts, layout));
+  warnings.push(...checkMeasureDurations(normalized.parts, timeSignature));
+
+  const measureCount = Math.max(
+    0,
+    ...PART_ORDER.flatMap(p => normalized.parts[p].map(n => n.m))
+  );
+
+  const confidence = computeConfidence(warnings, normalized.parts, layout);
+
+  return {
+    parts: normalized.parts,
+    layout,
+    keyFifths,
+    timeSignature,
+    measureCount,
+    lyrics: dedupeLyrics(lyrics),
+    warnings,
+    confidence,
+    source: "vector",
+    elapsedMs: Date.now() - t0,
+    pageCount: extracted.pages.length,
+  };
+}
+
+/** 벡터 파싱이 불가능할 때 (스캔 이미지) */
+export class VectorParseUnavailable extends Error {
+  constructor(public reason: string) {
+    super(`벡터 PDF가 아닙니다: ${reason}`);
+    this.name = "VectorParseUnavailable";
+  }
+}
+
+/**
+ * 가사를 추출해 마디·박 위치에 붙인다.
+ *
+ * 가사는 오선 아래의 텍스트다. 음표와 X좌표로 매칭한다.
+ * 한글 가사는 한 글자가 한 음절이므로 글자 단위로 처리하되,
+ * 인접한 글자가 같은 X 근처에 있으면 한 음절로 합친다.
+ */
+function extractLyrics(
+  page: PageGeometry,
+  staves: Staff[],
+  eventsPerStaff: TimedEvent[][],
+  measureOffset: number
+): { m: number; b: number; text: string }[] {
+  if (staves.length === 0) return [];
+  const sp = staves[0].spacing;
+
+  // 가사는 보통 첫 오선(또는 상단 오선) 아래에 놓인다
+  const refStaff = staves[0];
+  const refEvents = eventsPerStaff[0] ?? [];
+  if (refEvents.length === 0) return [];
+
+  // 오선 아래 1~5칸 구간의 텍스트
+  const zone = page.texts.filter(
+    t =>
+      t.y < refStaff.bottomY - sp * 0.5 &&
+      t.y > refStaff.bottomY - sp * 7 &&
+      t.x >= refStaff.x1 - sp &&
+      t.x <= refStaff.x2 + sp
+  );
+  if (zone.length === 0) return [];
+
+  // X순 정렬 후 인접 글자 병합
+  zone.sort((a, b) => a.x - b.x);
+  const syllables: { x: number; text: string }[] = [];
+  for (const t of zone) {
+    const last = syllables[syllables.length - 1];
+    // 글자 폭의 60% 이내면 같은 음절로 본다
+    if (last && t.x - last.x < t.size * 0.6) {
+      last.text += t.text;
+    } else {
+      syllables.push({ x: t.x, text: t.text });
+    }
+  }
+
+  // 각 음절을 가장 가까운 이벤트에 붙인다
+  const out: { m: number; b: number; text: string }[] = [];
+  for (const s of syllables) {
+    let best: TimedEvent | null = null;
+    let bestD = Infinity;
+    for (const e of refEvents) {
+      const d = Math.abs(e.x - s.x);
+      if (d < bestD) {
+        bestD = d;
+        best = e;
+      }
+    }
+    // 너무 멀면 가사가 아니라 다른 텍스트(지시어 등)
+    if (best && bestD < sp * 4) {
+      out.push({ m: best.measure, b: best.beat, text: s.text });
+    }
+  }
+
+  void measureOffset;
+  return out;
+}
+
+/** 같은 위치의 가사 중복 제거 */
+function dedupeLyrics(
+  lyrics: { m: number; b: number; text: string }[]
+): { m: number; b: number; text: string }[] {
+  const seen = new Map<string, { m: number; b: number; text: string }>();
+  for (const l of lyrics) {
+    const key = `${l.m}:${l.b.toFixed(3)}`;
+    if (!seen.has(key)) seen.set(key, l);
+  }
+  return Array.from(seen.values()).sort((a, b) => a.m - b.m || a.b - b.b);
+}
+
+/**
+ * 신뢰도 점수.
+ *
+ * 벡터 경로는 기본이 높다. 경고가 있으면 심각도에 따라 깎는다.
+ * 이 숫자를 사용자에게 그대로 보여주므로 낙관적으로 매기면 안 된다.
+ */
+function computeConfidence(
+  warnings: Warning[],
+  parts: Record<Part, Note[]>,
+  layout?: LayoutType
+): number {
+  let score = 99;
+
+  for (const w of warnings) {
+    if (w.severity === "error") score -= 25;
+    else if (w.severity === "warn") score -= 8;
+    else score -= 2;
+  }
+
+  // 음표가 너무 적으면 신뢰할 수 없다
+  const total = PART_ORDER.reduce((s, p) => s + parts[p].length, 0);
+  if (total < 8) score -= 30;
+  else if (total < 20) score -= 10;
+
+  /*
+   * 빈 파트 감점.
+   *
+   * 단성부 악보는 빈 파트 3개가 정상이므로 감점하지 않는다. 감점하면
+   * 완벽히 읽힌 악보가 신뢰도 5로 표시되어 사용자가 결과를 의심한다.
+   */
+  if (layout !== "single") {
+    const empty = PART_ORDER.filter(p => parts[p].length === 0).length;
+    score -= empty * 12;
+  }
+
+  return Math.max(5, Math.min(99, Math.round(score)));
+}

@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+/**
+ * 디자인 토큰.
+ *
+ * **시안(ui/desktop.html · ui/mobile.html)의 :root 변수를 그대로 옮긴 것입니다.**
+ * 색과 글꼴을 임의로 바꾸지 마십시오. docs/TASKS.md P4·P5 주의사항
+ */
+@theme {
+  /* 잉크 — 본문 계열 */
+  --color-ink: #14161a;
+  --color-ink-70: #4a4e56;
+  --color-ink-45: #7c818a;
+  --color-ink-20: #c3c6c1;
+
+  /* 바탕 */
+  --color-paper: #fbfaf7;
+  --color-panel: #ffffff;
+  --color-rule: #cfd1cb;
+  --color-slate: #1f242c;
+
+  /* 파트색. docs/SPEC.md 4.4 — 소프라노·알토·테너·베이스 순 */
+  --color-wine: #7a2e3f;
+  --color-wine-soft: #f0e4e7;
+  --color-amber: #9a6516;
+  --color-amber-soft: #f6eddc;
+  --color-sage: #3f6353;
+  --color-sage-soft: #e4ede8;
+  --color-blue: #2c4a6e;
+
+  /* 글꼴. 역할별로 나눕니다 — 제목·가사 / 본문 / 수치 */
+  --font-title: "Gowun Batang", serif;
+  --font-sans: "IBM Plex Sans KR", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --radius-card: 14px;
+  --radius-panel: 12px;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    /* 본문 최소 14px. docs/SPEC.md 6장 */
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* 모든 조작에 보이는 초점 표시. docs/SPEC.md 6장 */
+  :focus-visible {
+    outline: 2px solid var(--color-wine);
+    outline-offset: 2px;
+  }
+
+  /* 동작 축소 존중. 자동 스크롤은 즉시 이동으로. docs/SPEC.md 6장 */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

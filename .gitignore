@@ -1,0 +1,33 @@
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# 환경변수. 실제 값은 Railway 변수로만 관리합니다. (.env.example 만 저장소에 둡니다)
+.env
+.env.*
+!.env.example
+
+# 편집기·OS
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# 로그
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# 임시 산출물
+/tmp/
+/out/
+.eslintcache
+
+# 시안 원본의 중복 사본. 정본은 ui/desktop.html · ui/mobile.html 입니다.
+/desktop.html
+/mobile.html
+# 브레이스 확장이 실패해 생긴 빈 디렉터리 잔재
+/{docs*

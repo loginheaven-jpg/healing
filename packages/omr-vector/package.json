@@ -1,0 +1,26 @@
+{
+  "name": "@healing/omr-vector",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "벡터 PDF(악보 소프트웨어 출력)를 직접 해석하는 파서",
+  "pdfjsVersionNote": "pdfjs-dist 는 정확히 4.10.38 입니다. 캐럿을 쓰지 마십시오. 5.x 는 doc.destroy 가 사라지고 선 그리기 연산자 노출이 달라 '벡터 PDF가 아닙니다'로 오판합니다. docs/OMR.md 5.7 · docs/ARCHITECTURE.md 2.1",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b tsconfig.json",
+    "typecheck": "tsc -b tsconfig.json"
+  },
+  "dependencies": {
+    "pdfjs-dist": "4.10.38"
+  }
+}

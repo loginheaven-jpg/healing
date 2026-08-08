@@ -1,0 +1,13 @@
+{
+  "//": "솔루션 파일. 자체 소스는 없고 참조만 모읍니다. `pnpm typecheck` = `tsc -b`",
+  "files": [],
+  "references": [
+    { "path": "./packages/schema" },
+    { "path": "./packages/db" },
+    { "path": "./packages/omr-vector" },
+    { "path": "./apps/web/tsconfig.server.json" },
+    { "path": "./apps/web/tsconfig.client.json" },
+    { "path": "./apps/omr-worker" },
+    { "path": "./scripts" }
+  ]
+}

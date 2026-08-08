@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>힐링콰이어 — UI 시안 v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#14161A; --ink-70:#4A4E56; --ink-45:#7C818A; --ink-20:#C3C6C1;
+  --paper:#FBFAF7; --panel:#FFFFFF; --rule:#CFD1CB;
+  --wine:#7A2E3F; --wine-soft:#F0E4E7;
+  --sage:#3F6353; --sage-soft:#E4EDE8;
+  --amber:#9A6516; --amber-soft:#F6EDDC;
+  --slate:#1F242C;
+  --radius:14px;
+  --shadow:0 1px 2px rgba(20,22,26,.05), 0 8px 24px -12px rgba(20,22,26,.16);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:'IBM Plex Sans KR',system-ui,sans-serif;
+  line-height:1.6; letter-spacing:-.01em; padding-bottom:80px;
+}
+.mono{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums}
+
+.specbar{background:var(--slate);color:#E8E9E6;padding:13px 20px;display:flex;gap:18px;align-items:baseline;flex-wrap:wrap}
+.specbar b{font-family:'Gowun Batang',serif;font-size:16px;font-weight:700;letter-spacing:0}
+.specbar span{font-size:12.5px;color:#9AA0A8}
+
+.app{max-width:520px;margin:0 auto;padding:0 20px}
+
+.top{display:flex;align-items:center;justify-content:space-between;padding:24px 0 16px;gap:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:baseline;gap:10px}
+.brand h1{font-family:'Gowun Batang',serif;font-size:23px;font-weight:700;letter-spacing:-.02em}
+.brand em{font-style:normal;font-size:12px;color:var(--ink-45)}
+.topnote{font-size:12px;color:var(--ink-45)}
+
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--rule);margin-bottom:28px;overflow-x:auto}
+.tab{appearance:none;background:none;border:0;cursor:pointer;font-family:inherit;font-size:14px;
+  color:var(--ink-45);padding:11px 16px 12px;border-bottom:2px solid transparent;white-space:nowrap;transition:color .15s}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--wine);font-weight:500}
+.tab:focus-visible{outline:2px solid var(--wine);outline-offset:-2px;border-radius:4px 4px 0 0}
+
+.screen{display:none;animation:rise .28s ease both}
+.screen.on{display:block}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+.eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-45);margin-bottom:9px}
+.card{background:var(--panel);border:1px solid var(--rule);border-radius:var(--radius);box-shadow:var(--shadow)}
+h2.title{font-family:'Gowun Batang',serif;font-size:26px;font-weight:700;letter-spacing:-.02em;margin-bottom:6px}
+p.lede{color:var(--ink-70);font-size:14.5px;max-width:58ch;margin-bottom:24px}
+
+.btn{appearance:none;font-family:inherit;font-size:14px;font-weight:500;padding:11px 22px;border-radius:9px;
+  border:1px solid var(--ink);background:var(--ink);color:#fff;cursor:pointer;transition:opacity .15s}
+.btn:hover{opacity:.86}
+.btn:focus-visible{outline:2px solid var(--wine);outline-offset:2px}
+.btn.ghost{background:none;color:var(--ink);border-color:var(--rule)}
+.btn.ghost:hover{border-color:var(--ink)}
+.btn.wine{background:var(--wine);border-color:var(--wine)}
+.btn.sm{font-size:12.5px;padding:7px 13px;border-radius:7px}
+
+/* ═══ 서재 ═══ */
+.shelf{display:grid;gap:13px}
+.song{display:grid;grid-template-columns:1fr auto;gap:18px;align-items:center;padding:17px 20px;
+  background:var(--panel);border:1px solid var(--rule);border-radius:var(--radius);cursor:pointer;
+  transition:border-color .15s,transform .15s;text-align:left;font-family:inherit;width:100%}
+.song:hover{border-color:var(--ink-45);transform:translateY(-1px)}
+.song:focus-visible{outline:2px solid var(--wine);outline-offset:2px}
+.song h3{font-family:'Gowun Batang',serif;font-size:18.5px;font-weight:700;letter-spacing:-.01em}
+.song .meta{font-size:12.5px;color:var(--ink-45);margin-top:4px}
+.song .meta .dot{margin:0 7px;color:var(--ink-20)}
+.songright{text-align:right;min-width:112px}
+.lastpart{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-70)}
+.lastpart b{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;background:#F1F1EE;
+  border-radius:5px;padding:2px 6px;color:var(--ink)}
+.bar{height:3px;background:#EDEDEA;border-radius:2px;margin-top:8px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--wine);border-radius:2px}
+.needfix{font-size:12px;color:var(--amber)}
+
+.addnew{margin-top:13px;display:flex;align-items:center;justify-content:center;gap:9px;padding:20px;
+  border:1.5px dashed var(--ink-20);border-radius:var(--radius);color:var(--ink-45);font-size:14px;
+  cursor:pointer;background:none;width:100%;font-family:inherit;transition:border-color .15s,color .15s}
+.addnew:hover{border-color:var(--wine);color:var(--wine)}
+
+/* ═══ 올리기 ═══ */
+.drop{padding:42px 28px;text-align:center;border:1.5px dashed var(--ink-20);border-radius:var(--radius);
+  background:var(--panel);margin-bottom:20px}
+.drop strong{display:block;font-family:'Gowun Batang',serif;font-size:19px;margin:18px 0 6px}
+.drop span{font-size:13.5px;color:var(--ink-45)}
+
+.diag{padding:22px 24px 24px}
+.diag-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding-bottom:16px;
+  border-bottom:1px solid var(--rule);margin-bottom:18px;flex-wrap:wrap}
+.route{display:flex;align-items:center;gap:11px}
+.route .badge{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.05em;padding:5px 10px;
+  border-radius:6px;background:var(--amber-soft);color:var(--amber)}
+.route .badge.vec{background:var(--sage-soft);color:var(--sage)}
+.route strong{font-size:15px;font-weight:500}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(126px,1fr));gap:1px;background:var(--rule);border-radius:10px;overflow:hidden}
+.metric{background:var(--panel);padding:14px 16px}
+.metric dt{font-size:11.5px;color:var(--ink-45);margin-bottom:5px}
+.metric dd{font-family:'IBM Plex Mono',monospace;font-size:19px}
+.metric dd small{font-size:11px;color:var(--ink-45);margin-left:3px;font-family:'IBM Plex Sans KR',sans-serif}
+.metric.bad dd{color:var(--wine)} .metric.good dd{color:var(--sage)}
+
+.verdict{margin-top:18px;padding:16px 18px;border-radius:10px;display:flex;gap:13px;align-items:flex-start;background:var(--wine-soft)}
+.verdict .ico{flex:none;width:22px;height:22px;border-radius:50%;background:var(--wine);color:#fff;display:grid;place-items:center;font-size:13px;margin-top:1px}
+.verdict h4{font-size:14.5px;font-weight:600;margin-bottom:4px}
+.verdict p{font-size:13.5px;color:var(--ink-70)}
+.verdict .fixes{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap}
+
+/* ═══ 확인 ═══ */
+.review{display:grid;grid-template-columns:1fr 336px;gap:22px;align-items:start}
+@media(max-width:900px){.review{grid-template-columns:1fr}}
+.scorebox{padding:20px 22px 22px;overflow:hidden}
+.scorebox header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;gap:12px;flex-wrap:wrap}
+.scorebox h3{font-family:'Gowun Batang',serif;font-size:18px;font-weight:700}
+.scorebox .sub{font-size:12px;color:var(--ink-45)}
+
+.confid{padding:20px 22px}
+.confid .num{display:flex;align-items:baseline;gap:8px;margin-bottom:3px}
+.confid .num b{font-family:'IBM Plex Mono',monospace;font-size:42px;font-weight:400;letter-spacing:-.03em;line-height:1}
+.confid .num span{font-size:13px;color:var(--ink-45)}
+.confid .caption{font-size:13px;color:var(--ink-70);margin-bottom:16px}
+.gauge{display:block;width:100%}
+
+.warns{margin-top:15px;display:grid;gap:10px}
+.warn{padding:13px 15px;border-radius:10px;border:1px solid var(--rule);background:var(--panel)}
+.warn.lv-warn{border-left:3px solid var(--amber)}
+.warn.lv-info{border-left:3px solid var(--ink-20)}
+.warn.lv-err{border-left:3px solid var(--wine)}
+.warn .code{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.06em;color:var(--ink-45);display:block;margin-bottom:5px}
+.warn p{font-size:13px;line-height:1.55}
+.chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}
+.chip{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:3px 7px;border-radius:5px;background:#F1F1EE;
+  color:var(--ink-70);cursor:pointer;border:1px solid transparent}
+.chip:hover{border-color:var(--ink-20)}
+.warn .act{margin-top:11px;display:flex;gap:7px;flex-wrap:wrap}
+
+/* ═══ 연습 ═══ */
+.practice{display:grid;grid-template-columns:1fr;gap:16px;align-items:start}
+
+.viewer{background:var(--panel);border:1px solid var(--rule);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+.viewer-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 18px;
+  border-bottom:1px solid var(--rule);flex-wrap:wrap}
+.viewer-bar h3{font-family:'Gowun Batang',serif;font-size:17px;font-weight:700}
+.viewer-bar .pos{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--ink-45)}
+.autoscroll{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-70);cursor:pointer}
+.sw{width:34px;height:19px;border-radius:11px;background:var(--ink-20);position:relative;transition:background .2s;flex:none}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;transition:transform .2s}
+.autoscroll[aria-pressed="true"] .sw{background:var(--sage)}
+.autoscroll[aria-pressed="true"] .sw::after{transform:translateX(15px)}
+.autoscroll:focus-visible{outline:2px solid var(--wine);outline-offset:3px;border-radius:6px}
+
+.scroller{height:360px;overflow-y:auto;padding:16px 18px 24px;scroll-behavior:smooth;background:#FDFDFB}
+@media(max-width:600px){.scroller{height:340px}}
+.system{position:relative;margin-bottom:18px}
+.system svg{display:block;width:100%;height:auto}
+
+.transport{display:flex;align-items:center;gap:15px;padding:14px 18px;border-top:1px solid var(--rule);flex-wrap:wrap}
+.play{width:46px;height:46px;border-radius:50%;border:0;background:var(--ink);color:#fff;display:grid;place-items:center;cursor:pointer;flex:none;transition:transform .12s}
+.play:hover{transform:scale(1.05)}
+.play:focus-visible{outline:2px solid var(--wine);outline-offset:3px}
+.seek{flex:1;min-width:160px}
+.seekbar{height:4px;background:#EDEDEA;border-radius:3px;position:relative;cursor:pointer}
+.seekbar i{position:absolute;left:0;top:0;bottom:0;width:0%;background:var(--wine);border-radius:3px;transition:width .3s linear}
+.seekmeta{display:flex;justify-content:space-between;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-45);margin-top:7px}
+
+/* 파트 믹서 */
+.mixcard{padding:16px 18px}
+.mixcard h4{font-size:12.5px;font-weight:600;color:var(--ink-70);margin-bottom:6px}
+.mixcard .sub{font-size:11.5px;color:var(--ink-45);margin-bottom:13px;line-height:1.5}
+.mixer{display:grid;gap:2px}
+.vrow{display:grid;grid-template-columns:32px 1fr 38px 24px;align-items:center;gap:11px;padding:8px 7px;
+  border-radius:9px;transition:background .15s;background:transparent;border:0;width:100%;font-family:inherit}
+.vrow:hover{background:#F5F5F2}
+.vsel{appearance:none;background:none;border:0;cursor:pointer;padding:0;display:contents}
+.vlabel{font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:500;width:28px;height:28px;
+  border-radius:50%;display:grid;place-items:center;border:1.5px solid var(--ink-20);color:var(--ink-45);
+  transition:all .2s;cursor:pointer}
+.vrow.lead .vlabel{border-color:var(--wine);background:var(--wine);color:#fff}
+.vrow.off .vlabel{opacity:.35}
+.vstaff{height:22px;width:100%;cursor:pointer}
+.vgain{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-45);text-align:right}
+.vrow.lead .vgain{color:var(--ink)}
+.vmute{appearance:none;border:0;background:none;cursor:pointer;color:var(--ink-20);padding:4px;line-height:0;border-radius:5px}
+.vmute:hover{color:var(--wine)}
+.vmute:focus-visible{outline:2px solid var(--wine);outline-offset:1px}
+.vrow.off .vmute{color:var(--wine)}
+
+.pgroup{padding:16px 18px}
+.pgroup h4{font-size:12.5px;font-weight:600;color:var(--ink-70);margin-bottom:11px}
+.seg{display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;background:#F1F1EE;padding:3px;border-radius:9px}
+.seg.two{grid-template-columns:1fr 1fr}
+.seg button{appearance:none;border:0;background:none;font-family:inherit;font-size:12.5px;padding:8px 4px;
+  border-radius:7px;cursor:pointer;color:var(--ink-70);transition:all .15s}
+.seg button[aria-pressed="true"]{background:var(--panel);color:var(--ink);font-weight:500;box-shadow:0 1px 2px rgba(0,0,0,.07)}
+.seg button:focus-visible{outline:2px solid var(--wine);outline-offset:1px}
+.hint{font-size:11.5px;color:var(--ink-45);margin-top:9px;line-height:1.55}
+.tempo{display:flex;align-items:center;gap:13px}
+.tempo input{flex:1;accent-color:var(--wine)}
+.tempo .val{font-family:'IBM Plex Mono',monospace;font-size:14px;width:56px;text-align:right}
+
+.soon{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:9px;background:#F3F3F0;margin-top:11px}
+.soon .ico{flex:none;width:18px;height:18px;border-radius:50%;background:var(--ink-20);color:#fff;display:grid;place-items:center;font-size:10px;margin-top:2px}
+.soon p{font-size:11.5px;color:var(--ink-70);line-height:1.55}
+
+.sidepanel{display:grid;gap:14px}
+
+.note{margin-top:32px;padding:18px 20px;border-radius:var(--radius);background:#F3F3F0;border:1px solid var(--rule)}
+.note h5{font-size:12.5px;font-weight:600;margin-bottom:8px}
+.note ul{list-style:none;display:grid;gap:6px}
+.note li{font-size:12.5px;color:var(--ink-70);padding-left:15px;position:relative}
+.note li::before{content:"";position:absolute;left:0;top:9px;width:7px;height:1px;background:var(--ink-20)}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.scroller{scroll-behavior:auto}}
+@media(max-width:600px){h2.title{font-size:22px}.song{grid-template-columns:1fr}.songright{text-align:left;min-width:0}}
+</style>
+</head>
+<body>
+
+<div class="specbar">
+  <b>힐링콰이어 — 모바일 시안</b>
+  <span>서재 · 연습</span>
+  <span>연습 화면에서 재생을 눌러 보세요</span>
+</div>
+
+<div class="app">
+
+  <div class="top">
+    <div class="brand"><h1>힐링콰이어</h1><em>성가대 파트 연습</em></div>
+    <span class="topnote">올리신 악보는 이 기기에만 저장됩니다</span>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-s="lib">서재</button>
+    <button class="tab" role="tab" aria-selected="false" data-s="play">연습</button>
+  </div>
+
+  <!-- ══ 서재 ══ -->
+  <section class="screen on" id="s-lib">
+    <h2 class="title">서재</h2>
+    <p class="lede">올려 두신 악보입니다. 곡을 누르시면 마지막에 들으시던 파트와 마디부터 이어서 연습하실 수 있습니다.</p>
+
+    <div class="shelf">
+      <button class="song">
+        <div>
+          <h3>이 세상 험하고</h3>
+          <div class="meta">신상우 편곡<span class="dot">·</span>80마디<span class="dot">·</span>Eb장조 3/4<span class="dot">·</span>2단 축소악보<span class="dot">·</span>스캔 인식</div>
+        </div>
+        <div class="songright">
+          <span class="lastpart">마지막 <b>알토</b></span>
+          <div class="bar"><i style="width:52%"></i></div>
+        </div>
+      </button>
+
+      <button class="song">
+        <div>
+          <h3>주 하나님 지으신 모든 세계</h3>
+          <div class="meta">4부 합창<span class="dot">·</span>32마디<span class="dot">·</span>G장조 4/4<span class="dot">·</span>4단 개방악보<span class="dot">·</span>벡터 인식</div>
+        </div>
+        <div class="songright">
+          <span class="lastpart">마지막 <b>합주</b></span>
+          <div class="bar"><i style="width:100%"></i></div>
+        </div>
+      </button>
+
+      <button class="song">
+        <div>
+          <h3>내 영혼이 은총 입어</h3>
+          <div class="meta">2단 축소악보<span class="dot">·</span>24마디<span class="dot">·</span>F장조 3/4<span class="dot">·</span>벡터 인식</div>
+        </div>
+        <div class="songright">
+          <span class="needfix">확인할 곳 2군데</span>
+          <div class="bar"><i style="width:0%"></i></div>
+        </div>
+      </button>
+    </div>
+
+    <button class="addnew" data-go="play" title="PC에서 올려 주세요">
+      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M7.5 1v13M1 7.5h13" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      새 악보는 PC에서 올려 주세요
+    </button>
+  </section>
+
+  <!-- ══ 연습 ══ -->
+  <section class="screen" id="s-play">
+    <h2 class="title">연습</h2>
+    <p class="lede">듣고 싶은 파트를 고르시면 그 파트를 앞세워 들려 드립니다. 재생하시면 악보가 따라 내려갑니다.</p>
+
+    <div class="practice">
+      <div class="viewer">
+        <div class="viewer-bar">
+          <h3>이 세상 험하고</h3>
+          <span class="pos mono" id="posText">5마디 · 0:00 / 3:04</span>
+          <button class="autoscroll" id="autoBtn" aria-pressed="true">
+            <span class="sw" aria-hidden="true"></span> 악보 따라가기
+          </button>
+        </div>
+
+        <div class="scroller" id="scroller"></div>
+
+        <div class="transport">
+          <button class="play" id="playBtn" aria-label="재생">
+            <svg width="16" height="18" viewBox="0 0 17 19" fill="currentColor" aria-hidden="true" id="playIcon"><path d="M1 1.6c0-.9 1-1.4 1.7-.9l13 7.9c.7.4.7 1.4 0 1.8l-13 7.9c-.7.5-1.7 0-1.7-.9V1.6z"/></svg>
+          </button>
+          <div class="seek">
+            <div class="seekbar"><i id="seekFill"></i></div>
+            <div class="seekmeta"><span>5마디</span><span id="seekMid">—</span><span>24마디</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidepanel">
+        <div class="card mixcard">
+          <h4>파트</h4>
+          <p class="sub">듣고 싶은 파트를 누르세요. 오른쪽 동그라미로 소리를 끄실 수 있습니다.</p>
+          <div class="mixer" id="mixer">
+            <div class="vrow" data-p="S">
+              <button class="vsel" aria-label="소프라노 앞세우기">
+                <span class="vlabel">S</span>
+                <svg class="vstaff" viewBox="0 0 300 22" preserveAspectRatio="none" aria-hidden="true"><g stroke="#C3C6C1" stroke-width="1"><line x1="0" y1="3" x2="300" y2="3"/><line x1="0" y1="7.5" x2="300" y2="7.5"/><line x1="0" y1="12" x2="300" y2="12"/><line x1="0" y1="16.5" x2="300" y2="16.5"/><line x1="0" y1="21" x2="300" y2="21"/></g></svg>
+                <span class="vgain">40</span>
+              </button>
+              <button class="vmute" aria-label="소프라노 소리 끄기"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.3"/></svg></button>
+            </div>
+            <div class="vrow lead" data-p="A">
+              <button class="vsel" aria-label="알토 앞세우기">
+                <span class="vlabel">A</span>
+                <svg class="vstaff" viewBox="0 0 300 22" preserveAspectRatio="none" aria-hidden="true"><g stroke="#14161A" stroke-width="1.3"><line x1="0" y1="3" x2="300" y2="3"/><line x1="0" y1="7.5" x2="300" y2="7.5"/><line x1="0" y1="12" x2="300" y2="12"/><line x1="0" y1="16.5" x2="300" y2="16.5"/><line x1="0" y1="21" x2="300" y2="21"/></g></svg>
+                <span class="vgain">100</span>
+              </button>
+              <button class="vmute" aria-label="알토 소리 끄기"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.3"/></svg></button>
+            </div>
+            <div class="vrow" data-p="T">
+              <button class="vsel" aria-label="테너 앞세우기">
+                <span class="vlabel">T</span>
+                <svg class="vstaff" viewBox="0 0 300 22" preserveAspectRatio="none" aria-hidden="true"><g stroke="#C3C6C1" stroke-width="1"><line x1="0" y1="3" x2="300" y2="3"/><line x1="0" y1="7.5" x2="300" y2="7.5"/><line x1="0" y1="12" x2="300" y2="12"/><line x1="0" y1="16.5" x2="300" y2="16.5"/><line x1="0" y1="21" x2="300" y2="21"/></g></svg>
+                <span class="vgain">40</span>
+              </button>
+              <button class="vmute" aria-label="테너 소리 끄기"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.3"/></svg></button>
+            </div>
+            <div class="vrow" data-p="B">
+              <button class="vsel" aria-label="베이스 앞세우기">
+                <span class="vlabel">B</span>
+                <svg class="vstaff" viewBox="0 0 300 22" preserveAspectRatio="none" aria-hidden="true"><g stroke="#C3C6C1" stroke-width="1"><line x1="0" y1="3" x2="300" y2="3"/><line x1="0" y1="7.5" x2="300" y2="7.5"/><line x1="0" y1="12" x2="300" y2="12"/><line x1="0" y1="16.5" x2="300" y2="16.5"/><line x1="0" y1="21" x2="300" y2="21"/></g></svg>
+                <span class="vgain">40</span>
+              </button>
+              <button class="vmute" aria-label="베이스 소리 끄기"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.3"/></svg></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card pgroup">
+          <h4>듣는 방식</h4>
+          <div class="seg" role="group" aria-label="듣는 방식">
+            <button aria-pressed="false">고른 파트만</button>
+            <button aria-pressed="true">고른 파트 크게</button>
+            <button aria-pressed="false">다 같이</button>
+          </div>
+          <p class="hint">고른 파트를 크게 두시면 다른 파트가 뒤에서 들려 화음 속 자리를 익히기 좋습니다.</p>
+        </div>
+
+        <div class="card pgroup">
+          <h4>빠르기</h4>
+          <div class="tempo"><input type="range" min="40" max="120" value="62" aria-label="빠르기"><span class="val">62</span></div>
+          <p class="hint">악보에 적힌 빠르기는 82입니다. 느리게 익히신 뒤 올리시면 됩니다.</p>
+        </div>
+
+        <div class="card pgroup">
+          <h4>구간 반복</h4>
+          <div class="seg two" role="group" aria-label="구간 반복">
+            <button aria-pressed="true">9–16마디</button>
+            <button aria-pressed="false">끄기</button>
+          </div>
+          <p class="hint">어려운 데를 잡아 두시면 그 자리만 되풀이합니다.</p>
+          <div class="soon">
+            <span class="ico" aria-hidden="true">·</span>
+            <p>사람 목소리로 부르는 기능은 다음 판에 넣을 예정입니다. 지금은 미디 소리로 들려 드립니다.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note">
+      <h5>이 화면의 설계 근거</h5>
+      <ul>
+        <li>파트를 미리 정해 두지 않습니다. 회원 관리가 없으므로 들을 때마다 고르고, 마지막 선택만 이 기기에 기억합니다.</li>
+        <li>파트 선택을 오선 네 줄로 그렸습니다. 고른 줄은 진하게, 나머지는 흐리게 두어 종이 악보를 보는 감각과 맞춥니다.</li>
+        <li>재생 위치를 초가 아니라 마디로 먼저 말합니다. 단원들은 시간이 아니라 마디로 약속합니다.</li>
+        <li>악보 따라가기는 끌 수 있습니다. 손으로 앞뒤를 짚어 보실 때 화면이 끌려가면 방해가 됩니다.</li>
+      </ul>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function(){
+  /* ── 화면 전환 ── */
+  var tabs=document.querySelectorAll('.tab');
+  var map={lib:'s-lib',play:'s-play'};
+  function show(k){
+    tabs.forEach(function(t){t.setAttribute('aria-selected',String(t.dataset.s===k));});
+    Object.keys(map).forEach(function(x){document.getElementById(map[x]).classList.toggle('on',x===k);});
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+  tabs.forEach(function(t){t.addEventListener('click',function(){show(t.dataset.s);});});
+  document.querySelectorAll('[data-go]').forEach(function(b){b.addEventListener('click',function(){show(b.dataset.go);});});
+
+  /* ── 인식 확인 화면 음표 ── */
+  var revNotes=document.getElementById('revnotes');
+  function head(x,y,open,color){
+    var c=color||'#14161A';
+    return '<ellipse cx="'+x+'" cy="'+y+'" rx="4.6" ry="3.4" transform="rotate(-18 '+x+' '+y+')" '+
+      (open?'fill="none" stroke="'+c+'" stroke-width="1.3"':'fill="'+c+'"')+'/>'+
+      '<line x1="'+(x+4.5)+'" y1="'+(y-1)+'" x2="'+(x+4.5)+'" y2="'+(y-18)+'" stroke="'+c+'" stroke-width="1.2"/>';
+  }
+  var rows=[{y:30,c:'#14161A'},{y:94,c:'#14161A'},{y:140,c:'#7A2E3F'},{y:204,c:'#14161A'}];
+  var xs=[90,120,150,240,390,420,540];
+  var html='';
+  rows.forEach(function(r,ri){
+    xs.forEach(function(x,i){
+      var open=(x===240||x===540);
+      var dy=(i===2?-6:0);
+      if(ri===2 && x>330) return;
+      html+=head(x,r.y+dy,open,r.c);
+    });
+  });
+  revNotes.innerHTML=html;
+
+  /* ── 악보 뷰 생성 ── */
+  var scroller=document.getElementById('scroller');
+  var SYSTEMS=5, PER=4, START=5;
+  var lyricPool=['주','의','은','혜','로','대','속','하','여','서','피','와','같','이','붉','은','죄','눈','같','이','희','겠','네','아'];
+  var lidx=0;
+
+  for(var s=0;s<SYSTEMS;s++){
+    var m0=START+s*PER;
+    var d=document.createElement('div');
+    d.className='system'; d.dataset.first=m0;
+    var svg='<svg viewBox="0 0 660 208" preserveAspectRatio="xMidYMid meet">';
+    // 현재 마디 강조 사각형(4개)
+    for(var k=0;k<PER;k++){
+      svg+='<rect class="mbox" data-m="'+(m0+k)+'" x="'+(40+k*152)+'" y="8" width="152" height="176" fill="#7A2E3F" opacity="0" rx="4"/>';
+    }
+    // 오선 4단
+    var tops=[16,60,104,148];
+    svg+='<g stroke="#CFD1CB" stroke-width=".85">';
+    tops.forEach(function(t){
+      for(var l=0;l<5;l++) svg+='<line x1="40" y1="'+(t+l*5.5)+'" x2="648" y2="'+(t+l*5.5)+'"/>';
+    });
+    for(var b=0;b<=PER;b++) svg+='<line x1="'+(40+b*152)+'" y1="16" x2="'+(40+b*152)+'" y2="170"/>';
+    svg+='</g>';
+    // 파트 글자
+    svg+='<g font-family="IBM Plex Mono, monospace" font-size="8.5" fill="#7C818A">';
+    ['S','A','T','B'].forEach(function(p,i){svg+='<text x="18" y="'+(tops[i]+14)+'">'+p+'</text>';});
+    svg+='</g>';
+    // 마디 번호
+    svg+='<text x="40" y="10" font-family="IBM Plex Mono, monospace" font-size="8.5" fill="#7C818A">'+m0+'</text>';
+    // 음표
+    svg+='<g fill="#14161A">';
+    for(var k2=0;k2<PER;k2++){
+      var n=(k2%2===0)?4:1;
+      for(var i2=0;i2<n;i2++){
+        var x=40+k2*152+34+i2*30;
+        tops.forEach(function(t,ti){
+          var y=t+ (( (k2+i2+ti)%4 )*2.75) + 5.5;
+          var open=(n===1);
+          svg+='<ellipse cx="'+x+'" cy="'+y+'" rx="3.9" ry="2.9" transform="rotate(-18 '+x+' '+y+')" '+
+               (open?'fill="none" stroke="#14161A" stroke-width="1.1"':'fill="#14161A"')+'/>'+
+               '<line x1="'+(x+3.8)+'" y1="'+(y-1)+'" x2="'+(x+3.8)+'" y2="'+(y-15)+'" stroke="#14161A" stroke-width="1"/>';
+        });
+      }
+    }
+    svg+='</g>';
+    // 가사 (네 파트 공용, 아래에 한 번)
+    svg+='<g font-family="Gowun Batang, serif" font-size="10.5" fill="#4A4E56" text-anchor="middle">';
+    for(var k3=0;k3<PER;k3++){
+      var n3=(k3%2===0)?4:1;
+      for(var i3=0;i3<n3;i3++){
+        var lx=40+k3*152+34+i3*30;
+        svg+='<text x="'+lx+'" y="184">'+lyricPool[lidx%lyricPool.length]+'</text>';
+        lidx++;
+      }
+    }
+    svg+='</g>';
+    // 재생 커서
+    svg+='<line class="cursor" x1="0" y1="10" x2="0" y2="176" stroke="#7A2E3F" stroke-width="1.6" opacity="0"/>';
+    svg+='</svg>';
+    d.innerHTML=svg;
+    scroller.appendChild(d);
+  }
+
+  /* ── 재생 시늉 ── */
+  var playing=false, cur=0, timer=null;
+  var TOTAL=SYSTEMS*PER;
+  var playBtn=document.getElementById('playBtn');
+  var playIcon=document.getElementById('playIcon');
+  var posText=document.getElementById('posText');
+  var seekFill=document.getElementById('seekFill');
+  var seekMid=document.getElementById('seekMid');
+  var autoBtn=document.getElementById('autoBtn');
+  var systems=scroller.querySelectorAll('.system');
+  var ICON_PLAY='<path d="M1 1.6c0-.9 1-1.4 1.7-.9l13 7.9c.7.4.7 1.4 0 1.8l-13 7.9c-.7.5-1.7 0-1.7-.9V1.6z"/>';
+  var ICON_PAUSE='<path d="M2 1h4v17H2zM11 1h4v17h-4z"/>';
+
+  function paint(){
+    var sysIdx=Math.floor(cur/PER), inSys=cur%PER;
+    systems.forEach(function(sv,i){
+      sv.querySelectorAll('.mbox').forEach(function(r,j){
+        r.setAttribute('opacity', (i===sysIdx && j===inSys) ? '.07' : '0');
+      });
+      var c=sv.querySelector('.cursor');
+      if(i===sysIdx){
+        var x=40+inSys*152+2;
+        c.setAttribute('x1',x); c.setAttribute('x2',x); c.setAttribute('opacity','1');
+      } else c.setAttribute('opacity','0');
+    });
+    var m=START+cur;
+    var sec=Math.round(cur*2.3);
+    posText.textContent=m+'마디 · '+fmt(sec)+' / 3:04';
+    seekMid.textContent=m+'마디';
+    seekFill.style.width=((cur+1)/TOTAL*100)+'%';
+    if(autoBtn.getAttribute('aria-pressed')==='true'){
+      systems[sysIdx].scrollIntoView({block:'nearest'});
+    }
+  }
+  function fmt(s){return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');}
+
+  function tick(){ cur=(cur+1)%TOTAL; paint(); }
+
+  playBtn.addEventListener('click',function(){
+    playing=!playing;
+    playIcon.innerHTML=playing?ICON_PAUSE:ICON_PLAY;
+    playBtn.setAttribute('aria-label',playing?'멈춤':'재생');
+    if(playing){ paint(); timer=setInterval(tick,900); }
+    else clearInterval(timer);
+  });
+  autoBtn.addEventListener('click',function(){
+    var on=autoBtn.getAttribute('aria-pressed')==='true';
+    autoBtn.setAttribute('aria-pressed',String(!on));
+  });
+  paint();
+
+  /* ── 파트 믹서 ── */
+  document.querySelectorAll('.vrow').forEach(function(row){
+    row.querySelector('.vsel').addEventListener('click',function(){
+      if(row.classList.contains('off')) return;
+      document.querySelectorAll('.vrow').forEach(function(r){
+        r.classList.remove('lead');
+        setStaff(r,false);
+        if(!r.classList.contains('off')) r.querySelector('.vgain').textContent='40';
+      });
+      row.classList.add('lead'); setStaff(row,true);
+      row.querySelector('.vgain').textContent='100';
+    });
+    row.querySelector('.vmute').addEventListener('click',function(){
+      var off=row.classList.toggle('off');
+      var g=row.querySelector('.vgain');
+      if(off){ row.classList.remove('lead'); g.textContent='끔'; setStaff(row,false,true); }
+      else { g.textContent='40'; setStaff(row,false); }
+    });
+  });
+  function setStaff(row,lead,off){
+    var g=row.querySelector('.vstaff g');
+    g.setAttribute('stroke', off?'#E4E4E0' : (lead?'#14161A':'#C3C6C1'));
+    g.setAttribute('stroke-width', lead?'1.3':'1');
+    g.setAttribute('stroke-dasharray', off?'3 4':'none');
+  }
+
+  /* ── 분절 선택 ── */
+  document.querySelectorAll('.seg').forEach(function(seg){
+    seg.querySelectorAll('button').forEach(function(b){
+      b.addEventListener('click',function(){
+        seg.querySelectorAll('button').forEach(function(x){x.setAttribute('aria-pressed','false');});
+        b.setAttribute('aria-pressed','true');
+      });
+    });
+  });
+  var range=document.querySelector('.tempo input');
+  if(range) range.addEventListener('input',function(){document.querySelector('.tempo .val').textContent=range.value;});
+})();
+</script>
+</body>
+</html>

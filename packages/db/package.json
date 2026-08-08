@@ -1,0 +1,22 @@
+{
+  "name": "@healing/db",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Postgres 스키마와 접속. Drizzle. (내용은 P2에서 채웁니다)",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b tsconfig.json",
+    "typecheck": "tsc -b tsconfig.json"
+  }
+}

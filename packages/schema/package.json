@@ -1,0 +1,22 @@
+{
+  "name": "@healing/schema",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "두 인식 경로가 공통으로 만들어 내는 자료형. docs/ARCHITECTURE.md 4.1",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b tsconfig.json",
+    "typecheck": "tsc -b tsconfig.json"
+  }
+}

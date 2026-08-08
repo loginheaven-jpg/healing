@@ -1,0 +1,11 @@
+# 줄바꿈은 저장소 안에서 LF 로 통일합니다.
+# Docker 빌드가 Linux 에서 도므로, CRLF 가 섞이면 셸 스크립트와 diff 가 흔들립니다.
+* text=auto eol=lf
+
+# 회귀 테스트 픽스처. 바이트가 바뀌면 정답이 달라집니다.
+*.pdf   binary
+*.png   binary
+*.midi  binary
+*.mxl   binary
+
+pnpm-lock.yaml -diff linguist-generated=true

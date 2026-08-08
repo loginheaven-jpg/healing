@@ -1,0 +1,43 @@
+{
+  "name": "healing-choir",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "힐링콰이어 — 성가대 파트 연습 도구",
+  "packageManager": "pnpm@10.19.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "dev": "pnpm --filter @healing/web dev",
+    "clean": "tsc -b --clean && pnpm -r exec node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "r2:smoke": "node --env-file-if-exists=.env --import tsx scripts/r2-smoke.ts"
+  },
+  "pnpm": {
+    "//": "빌드 스크립트를 허용할 의존성. pnpm 10 은 기본으로 막습니다.",
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
+  "devDependencies": {
+    "@aws-sdk/client-s3": "^3.716.0",
+    "@aws-sdk/s3-request-presigner": "^3.716.0",
+    "@eslint/js": "^9.17.0",
+    "@types/node": "^22.10.5",
+    "eslint": "^9.17.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.4.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.19.1",
+    "vitest": "^3.0.0"
+  }
+}

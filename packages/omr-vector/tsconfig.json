@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "tsBuildInfoFile": "./dist/.tsbuildinfo",
+
+    // 이식된 소스입니다. P0 의 지시는 "그대로 두고 빌드만 통하게 한다" 이므로
+    // 배열 접근마다 undefined 를 강제하는 규칙은 이 패키지에서만 끕니다.
+    // 이 코드를 실제로 손보는 P1 에서 다시 판단합니다.
+    "noUncheckedIndexedAccess": false
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts", "dist", "fixtures"]
+}

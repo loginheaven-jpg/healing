@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1440">
+<title>힐링콰이어 — 데스크톱 시안 (악보 올리기 · 인식 확인)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#14161A; --ink-70:#4A4E56; --ink-45:#7C818A; --ink-20:#C3C6C1;
+  --paper:#FBFAF7; --panel:#FFFFFF; --rule:#CFD1CB;
+  --wine:#7A2E3F; --wine-soft:#F0E4E7;
+  --sage:#3F6353; --sage-soft:#E4EDE8;
+  --amber:#9A6516; --amber-soft:#F6EDDC;
+  --blue:#2C4A6E;
+  --slate:#1F242C;
+  --radius:12px;
+  --shadow:0 1px 2px rgba(20,22,26,.05), 0 8px 24px -14px rgba(20,22,26,.18);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:'IBM Plex Sans KR',system-ui,sans-serif;
+  line-height:1.6;letter-spacing:-.01em;min-width:1280px}
+.mono{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums}
+
+.specbar{background:var(--slate);color:#E8E9E6;padding:12px 28px;display:flex;gap:20px;align-items:baseline}
+.specbar b{font-family:'Gowun Batang',serif;font-size:15px;font-weight:700}
+.specbar span{font-size:12px;color:#9AA0A8}
+
+.appbar{display:flex;align-items:center;justify-content:space-between;padding:16px 28px;
+  border-bottom:1px solid var(--rule);background:var(--panel)}
+.brand{display:flex;align-items:baseline;gap:10px}
+.brand h1{font-family:'Gowun Batang',serif;font-size:20px;font-weight:700}
+.brand em{font-style:normal;font-size:11.5px;color:var(--ink-45)}
+.tabs{display:flex;gap:2px}
+.tab{appearance:none;background:none;border:0;cursor:pointer;font-family:inherit;font-size:13.5px;
+  color:var(--ink-45);padding:8px 15px;border-radius:8px;transition:all .15s}
+.tab:hover{color:var(--ink);background:#F3F3F0}
+.tab[aria-selected="true"]{color:#fff;background:var(--ink);font-weight:500}
+.tab:focus-visible{outline:2px solid var(--wine);outline-offset:2px}
+
+.screen{display:none}
+.screen.on{display:block}
+
+.btn{appearance:none;font-family:inherit;font-size:13.5px;font-weight:500;padding:9px 18px;border-radius:8px;
+  border:1px solid var(--ink);background:var(--ink);color:#fff;cursor:pointer;transition:opacity .15s}
+.btn:hover{opacity:.86}
+.btn:focus-visible{outline:2px solid var(--wine);outline-offset:2px}
+.btn.ghost{background:none;color:var(--ink);border-color:var(--rule)}
+.btn.ghost:hover{border-color:var(--ink)}
+.btn.wine{background:var(--wine);border-color:var(--wine)}
+.btn.sm{font-size:12px;padding:6px 12px;border-radius:6px}
+.eyebrow{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink-45);margin-bottom:9px}
+.card{background:var(--panel);border:1px solid var(--rule);border-radius:var(--radius);box-shadow:var(--shadow)}
+
+/* ═══════════ 악보 올리기 ═══════════ */
+.upwrap{display:grid;grid-template-columns:520px 1fr;gap:24px;padding:24px 28px;align-items:start}
+
+.drop{padding:56px 32px;text-align:center;border:1.5px dashed var(--ink-20);border-radius:var(--radius);
+  background:var(--panel);transition:border-color .15s}
+.drop:hover{border-color:var(--wine)}
+.drop strong{display:block;font-family:'Gowun Batang',serif;font-size:20px;margin:20px 0 7px}
+.drop span{font-size:13px;color:var(--ink-45)}
+
+.filelist{margin-top:18px;display:grid;gap:9px}
+.fileitem{display:grid;grid-template-columns:34px 1fr auto;gap:13px;align-items:center;
+  padding:13px 15px;background:var(--panel);border:1px solid var(--rule);border-radius:10px}
+.fileicon{width:34px;height:34px;border-radius:8px;background:#F1F1EE;display:grid;place-items:center;
+  font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--ink-45)}
+.fileitem h4{font-size:13.5px;font-weight:500}
+.fileitem .m{font-size:11.5px;color:var(--ink-45);margin-top:2px}
+.pill{font-family:'IBM Plex Mono',monospace;font-size:10.5px;padding:4px 9px;border-radius:5px}
+.pill.done{background:var(--sage-soft);color:var(--sage)}
+.pill.run{background:var(--amber-soft);color:var(--amber)}
+
+.thumbs{margin-top:20px}
+.thumbrow{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px}
+.thumb{flex:none;width:88px}
+.thumb .box{width:88px;height:118px;border:1px solid var(--rule);border-radius:6px;background:#fff;
+  overflow:hidden;cursor:pointer;transition:border-color .15s}
+.thumb .box:hover{border-color:var(--wine)}
+.thumb.sel .box{border-color:var(--wine);border-width:2px}
+.thumb .n{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-45);text-align:center;margin-top:5px}
+
+.diagcard{padding:24px 26px}
+.diaghead{display:flex;align-items:center;justify-content:space-between;padding-bottom:16px;
+  border-bottom:1px solid var(--rule);margin-bottom:20px}
+.route{display:flex;align-items:center;gap:11px}
+.badge{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.05em;padding:5px 10px;border-radius:6px;
+  background:var(--amber-soft);color:var(--amber)}
+.badge.vec{background:var(--sage-soft);color:var(--sage)}
+.route strong{font-size:15px;font-weight:500}
+
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--rule);border-radius:10px;overflow:hidden}
+.metric{background:var(--panel);padding:16px 18px}
+.metric dt{font-size:11.5px;color:var(--ink-45);margin-bottom:6px}
+.metric dd{font-family:'IBM Plex Mono',monospace;font-size:26px;letter-spacing:-.02em;line-height:1}
+.metric dd small{font-size:11px;color:var(--ink-45);margin-left:4px;font-family:'IBM Plex Sans KR',sans-serif}
+.metric .std{font-size:10.5px;color:var(--ink-45);margin-top:7px}
+.metric.bad dd{color:var(--wine)} .metric.good dd{color:var(--sage)} .metric.mid dd{color:var(--amber)}
+
+.verdict{margin-top:20px;padding:18px 20px;border-radius:10px;display:flex;gap:14px;align-items:flex-start;background:var(--wine-soft)}
+.verdict .ico{flex:none;width:24px;height:24px;border-radius:50%;background:var(--wine);color:#fff;display:grid;place-items:center;font-size:14px;margin-top:1px}
+.verdict h4{font-size:15px;font-weight:600;margin-bottom:5px}
+.verdict p{font-size:13.5px;color:var(--ink-70);max-width:66ch}
+.verdict .fixes{margin-top:14px;display:flex;gap:9px}
+
+.howto{margin-top:20px;padding:18px 20px;border-radius:10px;background:#F3F3F0;border:1px solid var(--rule)}
+.howto h5{font-size:12.5px;font-weight:600;margin-bottom:10px}
+.howto ol{margin-left:17px;display:grid;gap:5px}
+.howto li{font-size:12.5px;color:var(--ink-70)}
+
+/* ═══════════ 인식 확인 ═══════════ */
+.revwrap{display:grid;grid-template-rows:1fr 152px;height:calc(100vh - 108px);min-height:720px}
+.revtop{display:grid;grid-template-columns:112px 1fr 400px;overflow:hidden}
+
+.pagerail{border-right:1px solid var(--rule);background:var(--panel);padding:14px 12px;overflow-y:auto}
+.pagerail .lbl{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;color:var(--ink-45);margin-bottom:10px;text-align:center}
+.prow{margin-bottom:9px;cursor:pointer}
+.prow .box{width:86px;height:114px;border:1px solid var(--rule);border-radius:5px;background:#fff;overflow:hidden;transition:border-color .15s}
+.prow:hover .box{border-color:var(--ink-45)}
+.prow.sel .box{border-color:var(--wine);border-width:2px}
+.prow .n{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-45);text-align:center;margin-top:4px}
+.prow .warncount{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--amber);margin-left:4px;vertical-align:middle}
+
+.stage{background:#F2F2EF;display:flex;flex-direction:column;overflow:hidden}
+.stagetop{display:flex;align-items:center;justify-content:space-between;padding:11px 18px;
+  background:var(--panel);border-bottom:1px solid var(--rule)}
+.stagetop h3{font-family:'Gowun Batang',serif;font-size:16px;font-weight:700}
+.viewseg{display:flex;gap:2px;background:#F1F1EE;padding:3px;border-radius:8px}
+.viewseg button{appearance:none;border:0;background:none;font-family:inherit;font-size:12px;padding:6px 13px;
+  border-radius:6px;cursor:pointer;color:var(--ink-70)}
+.viewseg button[aria-pressed="true"]{background:var(--panel);color:var(--ink);font-weight:500;box-shadow:0 1px 2px rgba(0,0,0,.07)}
+.zoom{display:flex;align-items:center;gap:9px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-45)}
+.zoom button{appearance:none;width:24px;height:24px;border:1px solid var(--rule);background:var(--panel);
+  border-radius:5px;cursor:pointer;color:var(--ink);font-size:13px;line-height:1}
+.sheetscroll{flex:1;overflow:auto;padding:22px;display:flex;justify-content:center}
+.sheetpage{background:#fff;box-shadow:0 2px 14px -6px rgba(0,0,0,.2);border:1px solid var(--rule)}
+
+.inspect{border-left:1px solid var(--rule);background:var(--panel);overflow-y:auto;padding:20px 20px 28px}
+.confid{padding-bottom:18px;border-bottom:1px solid var(--rule);margin-bottom:16px}
+.confid .num{display:flex;align-items:baseline;gap:8px;margin-bottom:4px}
+.confid .num b{font-family:'IBM Plex Mono',monospace;font-size:40px;font-weight:400;letter-spacing:-.03em;line-height:1}
+.confid .num span{font-size:12.5px;color:var(--ink-45)}
+.confid p{font-size:12.5px;color:var(--ink-70);margin-bottom:14px}
+
+.warns{display:grid;gap:10px}
+.warn{padding:13px 14px;border-radius:9px;border:1px solid var(--rule)}
+.warn.lv-err{border-left:3px solid var(--wine);background:#FDF8F9}
+.warn.lv-warn{border-left:3px solid var(--amber);background:#FEFBF6}
+.warn.lv-info{border-left:3px solid var(--ink-20)}
+.warn .code{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.06em;color:var(--ink-45);display:block;margin-bottom:5px}
+.warn p{font-size:12.5px;line-height:1.55}
+.chips{display:flex;gap:4px;flex-wrap:wrap;margin-top:9px}
+.chip{font-family:'IBM Plex Mono',monospace;font-size:10.5px;padding:3px 7px;border-radius:5px;
+  background:#F1F1EE;color:var(--ink-70);cursor:pointer;border:1px solid transparent}
+.chip:hover{border-color:var(--wine);color:var(--wine)}
+.warn .act{margin-top:10px;display:flex;gap:6px;flex-wrap:wrap}
+.warn.fixed{opacity:.5}
+.warn.fixed .act{display:none}
+
+/* 파트별 음역 띠 */
+.ranges{border-top:1px solid var(--rule);background:var(--panel);padding:14px 22px}
+.rangehead{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:9px}
+.rangehead h4{font-size:12.5px;font-weight:600}
+.rangehead span{font-size:11.5px;color:var(--ink-45)}
+.rangegrid{display:grid;gap:5px}
+.rrow{display:grid;grid-template-columns:56px 1fr 92px;align-items:center;gap:14px;cursor:pointer;
+  padding:3px 4px;border-radius:6px}
+.rrow:hover{background:#F7F7F4}
+.rrow .name{font-size:12px;color:var(--ink-70)}
+.rrow .val{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-45);text-align:right}
+.rrow.bad .val{color:var(--wine);font-weight:500}
+.rbar{height:16px;position:relative}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="specbar">
+  <b>힐링콰이어 데스크톱 시안</b>
+  <span>악보 올리기 · 인식 확인 (1920×1080 기준, 지휘자용)</span>
+  <span>상단 탭으로 전환</span>
+</div>
+
+<div class="appbar">
+  <div class="brand"><h1>힐링콰이어</h1><em>지휘자 도구</em></div>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-s="up">악보 올리기</button>
+    <button class="tab" role="tab" aria-selected="false" data-s="rev">인식 확인</button>
+  </div>
+  <button class="btn ghost sm">서재로</button>
+</div>
+
+<!-- ═══════ 악보 올리기 ═══════ -->
+<section class="screen on" id="s-up">
+  <div class="upwrap">
+    <div>
+      <div class="drop">
+        <svg width="132" height="38" viewBox="0 0 132 38" aria-hidden="true" style="margin:0 auto;display:block">
+          <g stroke="#CFD1CB" stroke-width="1">
+            <line x1="0" y1="7" x2="132" y2="7"/><line x1="0" y1="14" x2="132" y2="14"/>
+            <line x1="0" y1="21" x2="132" y2="21"/><line x1="0" y1="28" x2="132" y2="28"/>
+            <line x1="0" y1="35" x2="132" y2="35"/>
+          </g>
+          <ellipse cx="66" cy="21" rx="7" ry="5.2" fill="#7A2E3F" transform="rotate(-18 66 21)"/>
+          <line x1="72.6" y1="20" x2="72.6" y2="1" stroke="#7A2E3F" stroke-width="1.7"/>
+        </svg>
+        <strong>여기로 파일을 끌어다 놓으세요</strong>
+        <span>PDF · JPG · PNG · ZIP · 최대 40MB</span>
+        <div style="margin-top:22px"><button class="btn">파일 고르기</button></div>
+      </div>
+
+      <div class="filelist">
+        <div class="fileitem">
+          <div class="fileicon">PDF</div>
+          <div>
+            <h4>이세상험하고4부.pdf</h4>
+            <div class="m">7쪽 · 1.0MB · 스캔 이미지</div>
+          </div>
+          <span class="pill done">인식 완료</span>
+        </div>
+        <div class="fileitem">
+          <div class="fileicon">PDF</div>
+          <div>
+            <h4>주하나님지으신.pdf</h4>
+            <div class="m">2쪽 · 240KB · 벡터 PDF · 0.6초</div>
+          </div>
+          <span class="pill done">인식 완료</span>
+        </div>
+        <div class="fileitem">
+          <div class="fileicon">JPG</div>
+          <div>
+            <h4>내영혼이은총입어.jpg</h4>
+            <div class="m">1쪽 · 380KB · 인식하는 중 (2/3단계)</div>
+          </div>
+          <span class="pill run">62초 경과</span>
+        </div>
+      </div>
+
+      <div class="thumbs">
+        <div class="eyebrow">쪽 미리보기</div>
+        <div class="thumbrow" id="thumbrow"></div>
+      </div>
+    </div>
+
+    <div class="card diagcard">
+      <div class="diaghead">
+        <div class="route"><span class="badge">스캔 이미지</span><strong>이세상험하고4부.pdf</strong></div>
+        <span class="mono" style="font-size:12px;color:var(--ink-45)">1쪽 기준 · 처리 98초</span>
+      </div>
+
+      <div class="eyebrow">입력 품질</div>
+      <dl class="metrics">
+        <div class="metric bad">
+          <dt>추정 해상도</dt><dd>119<small>DPI</small></dd>
+          <div class="std">권장 300 이상</div>
+        </div>
+        <div class="metric bad">
+          <dt>오선 간격</dt><dd>7.0<small>px</small></dd>
+          <div class="std">권장 10 이상</div>
+        </div>
+        <div class="metric good">
+          <dt>기울기</dt><dd>1.6<small>도</small></dd>
+          <div class="std">자동 보정함</div>
+        </div>
+        <div class="metric good">
+          <dt>보표 검출</dt><dd>4<small>단</small></dd>
+          <div class="std">합창 2단 + 반주 2단</div>
+        </div>
+      </dl>
+
+      <div class="verdict">
+        <span class="ico" aria-hidden="true">!</span>
+        <div>
+          <h4>해상도가 조금 낮습니다</h4>
+          <p>오선 간격이 7픽셀입니다. 음표와 리듬은 대부분 읽히지만 가사 글씨가 뭉개져 일부만 인식됩니다. 300DPI로 다시 스캔하시면 훨씬 정확해집니다. 악보를 보며 부르실 거라면 이대로도 연습에는 지장이 없습니다.</p>
+          <div class="fixes">
+            <button class="btn wine sm" id="howtoBtn">다시 스캔하는 방법</button>
+            <button class="btn ghost sm" data-go="rev">이대로 진행하기</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="howto" id="howto" hidden>
+        <h5>다시 스캔하는 방법</h5>
+        <ol>
+          <li>스캐너를 쓰신다면 해상도를 300DPI로 맞춰 주세요.</li>
+          <li>휴대폰으로 찍으신다면 악보와 카메라를 평행하게 두고, 그림자가 지지 않게 해 주세요.</li>
+          <li>한 장에 한 쪽씩 찍어 주세요.</li>
+          <li>흑백보다 회색조가 낫습니다.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 인식 확인 ═══════ -->
+<section class="screen" id="s-rev">
+  <div class="revwrap">
+    <div class="revtop">
+
+      <!-- 쪽 목록 -->
+      <div class="pagerail">
+        <div class="lbl">쪽</div>
+        <div id="pagerail"></div>
+      </div>
+
+      <!-- 악보 -->
+      <div class="stage">
+        <div class="stagetop">
+          <h3>이 세상 험하고</h3>
+          <div class="viewseg" role="group" aria-label="보기 방식">
+            <button aria-pressed="false" data-v="orig">원본만</button>
+            <button aria-pressed="true" data-v="over">겹쳐보기</button>
+            <button aria-pressed="false" data-v="rec">인식만</button>
+          </div>
+          <div class="zoom">
+            <button aria-label="축소">−</button><span id="zoomVal">100%</span><button aria-label="확대">+</button>
+          </div>
+        </div>
+        <div class="sheetscroll">
+          <svg class="sheetpage" id="sheet" width="720" height="960" viewBox="0 0 720 960" role="img" aria-label="악보. 인식 결과가 원본 위에 겹쳐 표시됩니다"></svg>
+        </div>
+      </div>
+
+      <!-- 검사 -->
+      <div class="inspect">
+        <div class="confid">
+          <div class="eyebrow">인식 신뢰도</div>
+          <div class="num"><b id="confNum">71</b><span>/ 100</span></div>
+          <p id="confCap">확인하실 곳이 3군데 있습니다.</p>
+          <svg height="26" viewBox="0 0 340 26" style="width:100%;display:block" aria-hidden="true">
+            <g stroke="#EDEDEA" stroke-width="2.6" stroke-linecap="round">
+              <line x1="2" y1="4" x2="338" y2="4"/><line x1="2" y1="9" x2="338" y2="9"/><line x1="2" y1="14" x2="338" y2="14"/>
+              <line x1="2" y1="19" x2="338" y2="19"/><line x1="2" y1="24" x2="338" y2="24"/></g>
+            <g stroke="#7A2E3F" stroke-width="2.6" stroke-linecap="round" id="gauge">
+              <line x1="2" y1="4" x2="240" y2="4"/><line x1="2" y1="9" x2="240" y2="9"/><line x1="2" y1="14" x2="240" y2="14"/>
+              <line x1="2" y1="19" x2="240" y2="19"/><line x1="2" y1="24" x2="240" y2="24"/></g>
+          </svg>
+        </div>
+
+        <div class="eyebrow">확인할 곳</div>
+        <div class="warns">
+          <div class="warn lv-err" id="w-range">
+            <span class="code">RANGE_VIOLATION · 테너</span>
+            <p>테너가 보통 음역보다 한 옥타브 높습니다. 옥타브 낮은 높은음자리표를 놓친 것으로 보입니다.</p>
+            <div class="act">
+              <button class="btn wine sm" id="fixOct">한 옥타브 내리기</button>
+              <button class="btn ghost sm">그대로 두기</button>
+            </div>
+          </div>
+
+          <div class="warn lv-warn">
+            <span class="code">UNISON_AMBIGUOUS · 소프라노</span>
+            <p>음표가 하나뿐인 지점이 5곳입니다. 소프라노와 알토가 같은 음을 부르는 것으로 처리했습니다.</p>
+            <div class="chips">
+              <span class="chip">9마디</span><span class="chip">11마디</span><span class="chip">17마디</span>
+              <span class="chip">21마디</span><span class="chip">34마디</span>
+            </div>
+          </div>
+
+          <div class="warn lv-warn">
+            <span class="code">TIME_SIGNATURE_GUESSED</span>
+            <p>박자표를 찾지 못해 3/4로 보았습니다. 다르면 아래에서 고쳐 주세요.</p>
+            <div class="act">
+              <button class="btn ghost sm">2/4</button><button class="btn ghost sm">3/4</button>
+              <button class="btn ghost sm">4/4</button><button class="btn ghost sm">6/8</button>
+            </div>
+          </div>
+
+          <div class="warn lv-info">
+            <span class="code">LYRICS_UNREADABLE</span>
+            <p>23음절 중 5개만 읽혔습니다. 음표와 연주는 정상입니다. 악보를 보며 부르시면 연습에 지장은 없습니다.</p>
+          </div>
+
+          <div class="warn lv-info">
+            <span class="code">STAFF_COUNT_UNEXPECTED</span>
+            <p>4단 중 아래 2단은 음표가 촘촘해 피아노 반주로 보고 제외했습니다.</p>
+            <div class="act"><button class="btn ghost sm">반주도 포함하기</button></div>
+          </div>
+        </div>
+
+        <div style="margin-top:18px;display:flex;gap:8px">
+          <button class="btn" style="flex:1">확인했습니다</button>
+          <button class="btn ghost" id="undoBtn">되돌리기</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 파트별 음역 띠 -->
+    <div class="ranges">
+      <div class="rangehead">
+        <h4>파트별 음역</h4>
+        <span>옅은 띠가 보통 음역입니다. 진한 띠가 이 악보의 실제 분포입니다. 띠를 누르시면 그 파트만 들려 드립니다.</span>
+      </div>
+      <div class="rangegrid" id="rangegrid"></div>
+    </div>
+  </div>
+</section>
+
+<script>
+(function(){
+  /* 화면 전환 */
+  var tabs=document.querySelectorAll('.tab');
+  function show(k){
+    tabs.forEach(function(t){t.setAttribute('aria-selected',String(t.dataset.s===k));});
+    document.getElementById('s-up').classList.toggle('on',k==='up');
+    document.getElementById('s-rev').classList.toggle('on',k==='rev');
+  }
+  tabs.forEach(function(t){t.addEventListener('click',function(){show(t.dataset.s);});});
+  document.querySelectorAll('[data-go]').forEach(function(b){b.addEventListener('click',function(){show(b.dataset.go);});});
+
+  var howtoBtn=document.getElementById('howtoBtn'), howto=document.getElementById('howto');
+  howtoBtn.addEventListener('click',function(){ howto.hidden=!howto.hidden; });
+
+  /* 축소 악보 그림 (썸네일용) */
+  function miniPage(){
+    var s='<svg viewBox="0 0 86 114" width="86" height="114">';
+    s+='<rect width="86" height="114" fill="#fff"/>';
+    for(var sys=0;sys<5;sys++){
+      var y=14+sys*20;
+      s+='<g stroke="#C3C6C1" stroke-width=".4">';
+      for(var l=0;l<4;l++) s+='<line x1="10" y1="'+(y+l*2.2)+'" x2="76" y2="'+(y+l*2.2)+'"/>';
+      s+='</g>';
+      s+='<g fill="#7C818A">';
+      for(var n=0;n<9;n++) s+='<circle cx="'+(14+n*7)+'" cy="'+(y+((n%4)*1.4))+'" r="1"/>';
+      s+='</g>';
+    }
+    return s+'</svg>';
+  }
+
+  var tr=document.getElementById('thumbrow');
+  for(var i=1;i<=7;i++){
+    var d=document.createElement('div');
+    d.className='thumb'+(i===1?' sel':'');
+    d.innerHTML='<div class="box">'+miniPage()+'</div><div class="n">'+i+'</div>';
+    tr.appendChild(d);
+  }
+  var pr=document.getElementById('pagerail');
+  for(var j=1;j<=7;j++){
+    var p=document.createElement('div');
+    p.className='prow'+(j===1?' sel':'');
+    p.innerHTML='<div class="box">'+miniPage()+'</div><div class="n">'+j+(j<=2?'<span class="warncount"></span>':'')+'</div>';
+    p.addEventListener('click',function(){
+      document.querySelectorAll('.prow').forEach(function(x){x.classList.remove('sel');});
+      this.classList.add('sel');
+    });
+    pr.appendChild(p);
+  }
+
+  /* 악보 본문: 원본(회색) + 인식(파트색) 겹쳐보기 */
+  var PARTC={S:'#7A2E3F',A:'#9A6516',T:'#3F6353',B:'#2C4A6E'};
+  var sheet=document.getElementById('sheet');
+  var octaveFixed=false;
+
+  function drawSheet(mode){
+    var s='<rect width="720" height="960" fill="#fff"/>';
+    // 제목
+    s+='<text x="360" y="46" text-anchor="middle" font-family="Gowun Batang, serif" font-size="21" fill="'+(mode==='rec'?'#C3C6C1':'#14161A')+'">이 세상 험하고</text>';
+    s+='<text x="360" y="64" text-anchor="middle" font-family="IBM Plex Sans KR" font-size="9" fill="#7C818A">for SATB voices with Piano accompaniment</text>';
+
+    var sysTop=[100,300,500,700];
+    sysTop.forEach(function(top,si){
+      var staves=[top,top+42,top+96,top+138];  // S/A(합창) T/B(합창) + 반주 2단 느낌
+      // 오선
+      s+='<g stroke="'+(mode==='rec'?'#E4E4E0':'#B9BCB6')+'" stroke-width=".9">';
+      staves.forEach(function(y){
+        for(var l=0;l<5;l++) s+='<line x1="56" y1="'+(y+l*6)+'" x2="664" y2="'+(y+l*6)+'"/>';
+      });
+      for(var b=0;b<=4;b++) s+='<line x1="'+(56+b*152)+'" y1="'+staves[0]+'" x2="'+(56+b*152)+'" y2="'+(staves[1]+24)+'"/>';
+      s+='</g>';
+      // 마디 번호
+      s+='<text x="56" y="'+(top-8)+'" font-family="IBM Plex Mono, monospace" font-size="9" fill="#7C818A">'+(1+si*4)+'</text>';
+
+      // 원본 음표(회색 잉크)
+      if(mode!=='rec'){
+        s+='<g fill="#3A3D42">';
+        for(var m=0;m<4;m++){
+          var cnt=(m%2===0)?4:1;
+          for(var k=0;k<cnt;k++){
+            var x=56+m*152+30+k*30;
+            [0,1].forEach(function(sti){
+              var yb=staves[sti];
+              [0,2].forEach(function(vo){
+                var y=yb+6+((m+k+vo)%4)*3+vo*7;
+                s+='<ellipse cx="'+x+'" cy="'+y+'" rx="4.2" ry="3.1" transform="rotate(-18 '+x+' '+y+')" '+(cnt===1?'fill="none" stroke="#3A3D42" stroke-width="1.2"':'')+'/>';
+                s+='<line x1="'+(x+4.1)+'" y1="'+(y-1)+'" x2="'+(x+4.1)+'" y2="'+(y-16)+'" stroke="#3A3D42" stroke-width="1"/>';
+              });
+            });
+          }
+        }
+        s+='</g>';
+        // 가사
+        s+='<g font-family="Gowun Batang, serif" font-size="11" fill="#4A4E56" text-anchor="middle">';
+        var syl=['주','의','은','혜','로','대','속','하','여','서'];
+        for(var m2=0;m2<4;m2++){
+          var c2=(m2%2===0)?4:1;
+          for(var k2=0;k2<c2;k2++){
+            s+='<text x="'+(56+m2*152+30+k2*30)+'" y="'+(staves[1]+46)+'">'+syl[(si*5+m2+k2)%syl.length]+'</text>';
+          }
+        }
+        s+='</g>';
+      }
+
+      // 인식 결과(파트색 표식)
+      if(mode!=='orig'){
+        var parts=['S','A','T','B'];
+        for(var m3=0;m3<4;m3++){
+          var c3=(m3%2===0)?4:1;
+          for(var k3=0;k3<c3;k3++){
+            var x3=56+m3*152+30+k3*30;
+            parts.forEach(function(p,pi){
+              var sti=pi<2?0:1, vo=pi%2;
+              var yb=staves[sti];
+              var y3=yb+6+((m3+k3+vo*2)%4)*3+vo*7;
+              // 테너는 옥타브 오류를 표현: 미교정이면 위로 벗어남
+              if(p==='T' && !octaveFixed) y3-=34;
+              s+='<circle cx="'+x3+'" cy="'+y3+'" r="5.6" fill="none" stroke="'+PARTC[p]+'" stroke-width="1.5" opacity=".85"/>';
+            });
+          }
+        }
+      }
+    });
+    sheet.innerHTML=s;
+  }
+  drawSheet('over');
+
+  document.querySelectorAll('.viewseg button').forEach(function(b){
+    b.addEventListener('click',function(){
+      document.querySelectorAll('.viewseg button').forEach(function(x){x.setAttribute('aria-pressed','false');});
+      b.setAttribute('aria-pressed','true');
+      drawSheet(b.dataset.v);
+    });
+  });
+
+  /* 파트별 음역 띠 */
+  var RANGE={
+    Soprano:{min:59,max:84,label:'소프라노',key:'S'},
+    Alto:{min:53,max:77,label:'알토',key:'A'},
+    Tenor:{min:47,max:72,label:'테너',key:'T'},
+    Bass:{min:38,max:64,label:'베이스',key:'B'}
+  };
+  var ACTUAL={Soprano:[67,79],Alto:[60,72],Tenor:[65,77],Bass:[43,56]};   // 테너가 위로 벗어남
+  var FIXED ={Soprano:[67,79],Alto:[60,72],Tenor:[53,65],Bass:[43,56]};
+  var LO=34, HI=90;
+
+  function drawRanges(){
+    var src=octaveFixed?FIXED:ACTUAL;
+    var g=document.getElementById('rangegrid'); g='';
+    var out='';
+    Object.keys(RANGE).forEach(function(k){
+      var r=RANGE[k], a=src[k];
+      var bad = a[0]<r.min || a[1]>r.max;
+      var toPct=function(v){return ((v-LO)/(HI-LO)*100);};
+      out+='<div class="rrow'+(bad?' bad':'')+'">';
+      out+='<span class="name">'+r.label+'</span>';
+      out+='<div class="rbar"><svg width="100%" height="16" preserveAspectRatio="none" viewBox="0 0 100 16">';
+      out+='<rect x="0" y="6.5" width="100" height="3" fill="#EDEDEA"/>';
+      out+='<rect x="'+toPct(r.min)+'" y="3" width="'+(toPct(r.max)-toPct(r.min))+'" height="10" rx="2" fill="'+PARTC[r.key]+'" opacity=".16"/>';
+      out+='<rect x="'+toPct(a[0])+'" y="4.5" width="'+(toPct(a[1])-toPct(a[0]))+'" height="7" rx="2" fill="'+PARTC[r.key]+'"/>';
+      out+='</svg></div>';
+      out+='<span class="val">'+(bad?'벗어남 ':'')+a[0]+'–'+a[1]+'</span>';
+      out+='</div>';
+    });
+    document.getElementById('rangegrid').innerHTML=out;
+  }
+  drawRanges();
+
+  /* 옥타브 교정 */
+  document.getElementById('fixOct').addEventListener('click',function(){
+    octaveFixed=true;
+    document.getElementById('w-range').classList.add('fixed');
+    document.getElementById('confNum').textContent='89';
+    document.getElementById('confCap').textContent='확인하실 곳이 2군데 남았습니다.';
+    document.querySelectorAll('#gauge line').forEach(function(l){ l.setAttribute('x2','302'); });
+    var m=document.querySelector('.viewseg button[aria-pressed="true"]').dataset.v;
+    drawSheet(m); drawRanges();
+  });
+  document.getElementById('undoBtn').addEventListener('click',function(){
+    octaveFixed=false;
+    document.getElementById('w-range').classList.remove('fixed');
+    document.getElementById('confNum').textContent='71';
+    document.getElementById('confCap').textContent='확인하실 곳이 3군데 있습니다.';
+    document.querySelectorAll('#gauge line').forEach(function(l){ l.setAttribute('x2','240'); });
+    var m=document.querySelector('.viewseg button[aria-pressed="true"]').dataset.v;
+    drawSheet(m); drawRanges();
+  });
+})();
+</script>
+</body>
+</html>

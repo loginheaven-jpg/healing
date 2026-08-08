@@ -1,0 +1,21 @@
+node_modules
+**/node_modules
+dist
+**/dist
+*.tsbuildinfo
+**/*.tsbuildinfo
+.git
+.env
+.env.*
+!.env.example
+
+# 이미지에 들어갈 이유가 없는 것들
+docs/
+ui/
+desktop.html
+mobile.html
+coverage/
+*.log
+
+# 회귀 테스트 픽스처(3.4MB)는 런타임에 쓰지 않습니다.
+packages/omr-vector/fixtures/
