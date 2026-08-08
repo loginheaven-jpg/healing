@@ -12,8 +12,10 @@ import { detectBarlines, parseNotesOnStaff, toTimedEvents, unifyBarlines, type T
 import { extractPdfGeometry, type PageGeometry } from "./pdfExtract.js";
 import { assignClefs, detectStaves } from "./staffDetect.js";
 import { groupIntoSystems, readKeySignature, readTimeSignature } from "./systemGroup.js";
+import { PDF_POINT_TO_PX } from "@healing/schema";
 import type {
   LayoutType,
+  MeasureBox,
   Note,
   OctaveSource,
   Part,
@@ -79,6 +81,7 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
     });
   }
 
+  const measureBoxes: MeasureBox[] = [];
   const parts: Record<Part, Note[]> = { Soprano: [], Alto: [], Tenor: [], Bass: [] };
   const rests: Record<Part, Rest[]> = { Soprano: [], Alto: [], Tenor: [], Bass: [] };
   const lyrics: { m: number; b: number; text: string }[] = [];
@@ -101,7 +104,7 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
   /** 화음 안에 서로 다른 음길이가 섞인 마디. docs/tasks/P1.md 3.6 */
   const polyrhythmMeasures = new Set<number>();
 
-  for (const page of extracted.pages) {
+  for (const [pageIdx, page] of extracted.pages.entries()) {
     const bare = detectStaves(page.hLines, page.width);
     if (bare.length === 0) continue;
 
@@ -126,7 +129,7 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
 
     const systems = groupIntoSystems(staves, page.vLines);
 
-    for (const sys of systems) {
+    for (const [sysIdx, sys] of systems.entries()) {
       const sysStaves = sys.staves;
 
       // 첫 시스템에서 조·박자·빠르기·구조를 확정한다
@@ -230,6 +233,15 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
       }
       // 시스템별 반복 경고는 첫 시스템만 채택 (같은 경고가 줄마다 쌓이는 것 방지)
       if (globalMeasureOffset === 0) warnings.push(...split.warnings);
+
+      // 마디 좌표
+      measureBoxes.push(
+        ...buildMeasureBoxes(page, sysStaves, bars, eventsPerStaff, {
+          pageNo: pageIdx + 1,
+          systemIdx: sysIdx,
+          measureOffset: globalMeasureOffset,
+        })
+      );
 
       // 가사 추출
       lyrics.push(...extractLyrics(page, sys.staves, shifted, globalMeasureOffset));
@@ -338,8 +350,7 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
     timeSignature,
     tempoBpm,
     measureCount,
-    // 마디 좌표는 3.10에서 채운다. 산출 실패 시 빈 배열이 규격이다
-    measureBoxes: [],
+    measureBoxes,
     lyrics: dedupeLyrics(lyrics),
     warnings,
     confidence,
@@ -450,6 +461,76 @@ function extractLyrics(
 
   void measureOffset;
   return syllables.map(s => ({ m: s.anchor.measure, b: s.anchor.beat, text: s.text }));
+}
+
+/**
+ * 마디의 화면상 위치를 낸다.
+ *
+ * **자동 스크롤의 전제 조건이다.** 이것이 없으면 P4의 악보 뷰가 커서를
+ * 어디에 둘지 모른다. 산출에 실패하면 빈 배열이고, 자동 스크롤은 경과 시간
+ * 비례로 대체된다. 경고는 남기지 않는다 — 사용자가 할 수 있는 일이 없다.
+ * docs/ARCHITECTURE.md 4.3
+ *
+ * **좌표계를 여기서 한 번만 뒤집는다.** 파서 내부는 PDF 좌표계(Y가 위로
+ * 증가)를 끝까지 유지한다. 중간에 뒤집으면 음높이 계산의 부호가 오염된다.
+ * MeasureBox 는 페이지 이미지 좌표계(px, Y가 아래로 증가)로 나가므로
+ * 이 함수가 그 경계다.
+ *
+ * **상자는 시스템 전체를 감싼다.** 파트 하나가 아니다. 4단 악보면 맨 위
+ * 오선의 윗줄부터 맨 아래 오선의 아랫줄까지다. 악보 뷰의 강조 사각형과
+ * 세로 커서가 이 높이를 쓴다.
+ */
+function buildMeasureBoxes(
+  page: PageGeometry,
+  sysStaves: Staff[],
+  bars: number[],
+  eventsPerStaff: TimedEvent[][],
+  ctx: { pageNo: number; systemIdx: number; measureOffset: number }
+): MeasureBox[] {
+  if (sysStaves.length === 0) return [];
+
+  // 시스템의 세로 범위: 맨 위 오선의 윗줄 ~ 맨 아래 오선의 아랫줄
+  const top = Math.max(...sysStaves.map(s => s.topY));
+  const bottom = Math.min(...sysStaves.map(s => s.bottomY));
+  const left = Math.min(...sysStaves.map(s => s.x1));
+  const right = Math.max(...sysStaves.map(s => s.x2));
+  if (!(top > bottom) || !(right > left)) return [];
+
+  /*
+   * 이 시스템이 담은 마디 수.
+   *
+   * 마디선 개수로 세지 않는다. 곡 끝의 겹세로줄이 있으면 하나 더 세고,
+   * 없으면 하나 덜 센다. 음표가 실제로 놓인 마디 번호를 쓰는 편이 확실하다.
+   * (noteParse.measureOf 와 같은 기준이라 음표와 상자가 어긋나지 않는다)
+   */
+  const localMax = Math.max(
+    0,
+    ...eventsPerStaff.flatMap(evs => evs.map(e => e.measure))
+  );
+  if (localMax === 0) return [];
+
+  /** 지역 마디 번호 k(1부터)의 좌우 경계. measureOf 의 규칙을 그대로 뒤집은 것 */
+  const edgeOf = (k: number): { l: number; r: number } => ({
+    l: k === 1 ? left : (bars[k - 2] ?? left),
+    r: k <= bars.length ? (bars[k - 1] ?? right) : right,
+  });
+
+  const out: MeasureBox[] = [];
+  for (let k = 1; k <= localMax; k++) {
+    const { l, r } = edgeOf(k);
+    if (!(r > l)) continue;
+    out.push({
+      page: ctx.pageNo,
+      measure: k + ctx.measureOffset,
+      system: ctx.systemIdx,
+      x: Math.round(l * PDF_POINT_TO_PX),
+      // 여기가 뒤집는 지점이다. PDF 의 위쪽 y 가 이미지의 작은 y 가 된다.
+      y: Math.round((page.height - top) * PDF_POINT_TO_PX),
+      w: Math.round((r - l) * PDF_POINT_TO_PX),
+      h: Math.round((top - bottom) * PDF_POINT_TO_PX),
+    });
+  }
+  return out;
 }
 
 /**

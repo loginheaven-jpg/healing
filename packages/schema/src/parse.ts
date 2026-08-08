@@ -94,6 +94,25 @@ export type Warning = {
 };
 
 /**
+ * 페이지 이미지를 만드는 기준 해상도(DPI).
+ *
+ * **두 곳이 이 값을 함께 씁니다.**
+ *   1) 벡터 경로가 MeasureBox 좌표를 이 배율로 산출한다
+ *   2) P2 가 PDF 를 이 해상도로 렌더해 song_pages 이미지를 만든다
+ *
+ * 어긋나면 악보 뷰의 강조 사각형이 음표와 어긋난 자리에 그려진다.
+ * 그래서 각자 적지 않고 여기 한 곳에 둔다.
+ */
+export const PAGE_RENDER_DPI = 300;
+
+/**
+ * PDF 포인트 → 페이지 이미지 픽셀 배율.
+ *
+ * PDF 의 길이 단위는 1/72 인치이므로 300DPI 렌더 배율은 300/72 = 4.1667 이다.
+ */
+export const PDF_POINT_TO_PX = PAGE_RENDER_DPI / 72;
+
+/**
  * 마디의 화면상 위치. 악보 뷰의 커서·자동 스크롤·마디 클릭이 이것을 쓴다.
  * 좌표는 **페이지 이미지 좌표계(px)**. 클라이언트는 song_pages.width/height 와
  * 실제 표시 크기의 비율만 곱해서 쓴다. docs/ARCHITECTURE.md 4.3

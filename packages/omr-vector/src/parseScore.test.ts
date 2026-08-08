@@ -340,3 +340,111 @@ describe("ParseResult 규격", () => {
     }
   });
 });
+
+/**
+ * 마디 좌표.
+ *
+ * **절대 픽셀값으로 시험하지 않는다.** 조판이 조금만 달라져도 값이 바뀌어
+ * 시험이 부서진다. 대신 좌표들 사이의 **관계**를 본다. 관계가 깨지면
+ * 악보 뷰의 커서가 엉뚱한 곳을 가리킨다는 뜻이고, 그것이 실제 증상이다.
+ */
+describe("마디 좌표", () => {
+  const FIXTURES = [
+    "open_satb.pdf", // 2시스템 9마디 — 시스템 전환을 본다
+    "closed_chord.pdf", // 1시스템 8마디
+    "rest_test.pdf",
+    "tenor_octave.pdf",
+    "wide_tb.pdf",
+  ];
+
+  it("마디 수만큼 상자가 나온다", async () => {
+    for (const name of FIXTURES) {
+      const r = await parseScorePdf(loadFixture(name));
+      expect(r.measureBoxes.length, `${name} 상자 수`).toBe(r.measureCount);
+    }
+  });
+
+  it("모든 상자가 페이지 안에 들어온다", async () => {
+    // A4를 300DPI로 렌더하면 2481×3507px. 여유를 두고 상한을 잡는다.
+    for (const name of FIXTURES) {
+      const r = await parseScorePdf(loadFixture(name));
+      for (const b of r.measureBoxes) {
+        const at = `${name} m${b.measure}`;
+        expect(b.x, `${at} x`).toBeGreaterThanOrEqual(0);
+        expect(b.y, `${at} y`).toBeGreaterThanOrEqual(0);
+        expect(b.w, `${at} w`).toBeGreaterThan(0);
+        expect(b.h, `${at} h`).toBeGreaterThan(0);
+        expect(b.x + b.w, `${at} 우변`).toBeLessThan(2700);
+        expect(b.y + b.h, `${at} 하변`).toBeLessThan(3700);
+      }
+    }
+  });
+
+  it("같은 시스템 안에서 x가 마디 순서대로 증가한다", async () => {
+    for (const name of FIXTURES) {
+      const r = await parseScorePdf(loadFixture(name));
+      const bySystem = new Map<string, typeof r.measureBoxes>();
+      for (const b of r.measureBoxes) {
+        const key = `${b.page}:${b.system}`;
+        bySystem.set(key, [...(bySystem.get(key) ?? []), b]);
+      }
+      for (const [key, boxes] of bySystem) {
+        const ordered = [...boxes].sort((a, b) => a.measure - b.measure);
+        for (let i = 1; i < ordered.length; i++) {
+          expect(ordered[i].x, `${name} ${key} m${ordered[i].measure} x`).toBeGreaterThan(
+            ordered[i - 1].x
+          );
+        }
+      }
+    }
+  });
+
+  it("시스템이 바뀌면 y가 증가하고 x가 되돌아간다", async () => {
+    // open_satb는 2시스템이다. 이 성질을 볼 수 있는 유일한 픽스처다.
+    const r = await parseScorePdf(loadFixture("open_satb.pdf"));
+    const systems = [...new Set(r.measureBoxes.map(b => b.system))].sort();
+    expect(systems.length, "시스템 수").toBeGreaterThan(1);
+
+    const firstOf = (sys: number) =>
+      r.measureBoxes.filter(b => b.system === sys).sort((a, b) => a.measure - b.measure)[0];
+    const lastOf = (sys: number) =>
+      r.measureBoxes.filter(b => b.system === sys).sort((a, b) => b.measure - a.measure)[0];
+
+    for (let i = 1; i < systems.length; i++) {
+      const prevLast = lastOf(systems[i - 1]);
+      const curFirst = firstOf(systems[i]);
+      expect(curFirst.y, `시스템 ${systems[i]} y`).toBeGreaterThan(prevLast.y);
+      expect(curFirst.x, `시스템 ${systems[i]} x`).toBeLessThan(prevLast.x);
+    }
+  });
+
+  it("같은 시스템의 상자끼리 크게 겹치지 않는다", async () => {
+    for (const name of FIXTURES) {
+      const r = await parseScorePdf(loadFixture(name));
+      const bySystem = new Map<string, typeof r.measureBoxes>();
+      for (const b of r.measureBoxes) {
+        const key = `${b.page}:${b.system}`;
+        bySystem.set(key, [...(bySystem.get(key) ?? []), b]);
+      }
+      for (const [key, boxes] of bySystem) {
+        const ordered = [...boxes].sort((a, b) => a.x - b.x);
+        for (let i = 1; i < ordered.length; i++) {
+          const prevRight = ordered[i - 1].x + ordered[i - 1].w;
+          const overlap = prevRight - ordered[i].x;
+          // 마디는 맞닿아 있다. 폭의 10%를 넘게 겹치면 경계 계산이 틀린 것이다
+          expect(overlap, `${name} ${key} m${ordered[i].measure} 겹침`).toBeLessThan(
+            ordered[i].w * 0.1
+          );
+        }
+      }
+    }
+  });
+
+  it("상자 높이가 시스템 전체를 감싼다", async () => {
+    // 4단 개방악보의 상자는 2단 축소악보보다 높아야 한다.
+    // 파트 하나만 감싸면 이 관계가 깨진다.
+    const open = await parseScorePdf(loadFixture("open_satb.pdf"));
+    const closed = await parseScorePdf(loadFixture("closed_chord.pdf"));
+    expect(open.measureBoxes[0].h, "4단 상자 높이").toBeGreaterThan(closed.measureBoxes[0].h);
+  });
+});
