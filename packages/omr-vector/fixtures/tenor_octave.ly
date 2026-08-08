@@ -12,13 +12,20 @@
 %% 받고, 이 음자리표는 표시 위치만 한 옥타브 올려 그립니다. 따라서 파서가
 %% 옥타브 표시를 놓치면 결과가 정확히 한 옥타브 높게 나옵니다.
 %%
-%% 생성 방법 (LilyPond 2.24 이상):
-%%   lilypond -o tenor_octave tenor_octave.ly
-%%     → tenor_octave.pdf, tenor_octave.midi
-%%   python3 gen_single_gt.py  형식으로 MIDI 에서 정답을 뽑아
-%%     → ground_truth_tenor_octave.json
+%% 생성 방법 (실제로 쓴 것: LilyPond 2.26.0):
+%%
+%%   cd packages/omr-vector/fixtures
+%%   lilypond -o tenor_octave tenor_octave.ly     → .pdf, .mid
+%%   mv tenor_octave.mid tenor_octave.midi        (다른 픽스처와 확장자 통일)
+%%
+%%   cd ../../..
+%%   node --import tsx scripts/midi-gt.mts \
+%%     packages/omr-vector/fixtures/tenor_octave.midi Soprano Alto Tenor Bass \
+%%     > packages/omr-vector/fixtures/ground_truth_tenor_octave.json
 %%
 %% **정답은 손으로 적지 않습니다.** LilyPond 가 낸 MIDI 가 정답입니다.
+%% scripts/midi-gt.mts 는 의존성 없이 MIDI 를 읽습니다. 기존 python+music21
+%% 스크립트와 같은 값을 내는지 three_staff 로 대조해 확인했습니다.
 
 \version "2.24.0"
 
@@ -38,10 +45,15 @@ soprano = \relative c'' {
   c4 d e f | g2 e | f4 e d c | d2 c \bar "|."
 }
 
-%% 알토: G4~C5 부근 (67~72)
+%% 알토: C4~G4 (60~67).
+%%
+%% 오선 안에 머물러야 한다. 처음에 \relative c' 로 g4 를 썼더니 LilyPond 가
+%% 가장 가까운 G3(55)를 골라 알토가 통째로 한 옥타브 내려갔고, 그 덧줄 음이
+%% 아래 테너 오선에 더 가까워져 테너가 흡수했다. 이 픽스처가 시험하려는
+%% 것은 옥타브 음자리표이지 덧줄 귀속 판정이 아니므로, 성부를 제 음역에 둔다.
 alto = \relative c' {
   \global
-  g4 a b c | d2 c | c4 c b a | b2 g \bar "|."
+  c4 d e f | g2 f | f4 f e d | e2 c \bar "|."
 }
 
 %% 테너: E3~A4 (52~69). 실제 테너 음역이며 알토보다 낮다.

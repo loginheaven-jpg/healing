@@ -199,3 +199,41 @@ describe("파서 품질 게이트", () => {
     }
   });
 });
+
+/**
+ * 옥타브 이조 음자리표 회귀.
+ *
+ * open_satb.pdf 는 테너가 65~77 로 알토(57~70)보다 높다. 그래서 음자리표
+ * 인식이 틀려도 음역 휴리스틱이 개입할 여지가 없어, 결함이 있는지 없는지
+ * 가릴 수 없다. tenor_octave.pdf 는 테너를 **진짜 테너 음역**(52~59)에 두어
+ * 그 구분을 가능하게 한다.
+ *
+ * \clef "treble_8" 을 놓치면 테너가 64~71 로 나와 알토(60~67)보다 높아진다.
+ * 즉 이 시험은 통과/실패가 명확히 갈린다.
+ */
+describe("옥타브 이조 음자리표", () => {
+  it("treble_8 테너가 정답 MIDI와 음 하나까지 일치한다", async () => {
+    const result = await parseScorePdf(loadFixture("tenor_octave.pdf"));
+    const gt = loadTruth("ground_truth_tenor_octave.json");
+
+    for (const part of PARTS) {
+      const got = result.parts[part].map(n => n.p);
+      expect(got, `${part} 음높이 배열`).toEqual(gt[part]);
+    }
+  });
+
+  it("테너의 옥타브를 음역 추측이 아니라 음자리표가 결정한다", async () => {
+    const result = await parseScorePdf(loadFixture("tenor_octave.pdf"));
+    // range-heuristic 이면 우연히 맞은 것이므로 미완이다
+    for (const part of PARTS) {
+      expect(result.octaveSource[part], `${part} 옥타브 근거`).toBe("clef");
+    }
+  });
+
+  it("테너가 알토보다 낮다", async () => {
+    const result = await parseScorePdf(loadFixture("tenor_octave.pdf"));
+    const med = (ns: { p: number }[]) =>
+      [...ns.map(n => n.p)].sort((a, b) => a - b)[Math.floor(ns.length / 2)];
+    expect(med(result.parts.Tenor)).toBeLessThan(med(result.parts.Alto));
+  });
+});
