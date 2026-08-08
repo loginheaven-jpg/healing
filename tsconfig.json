@@ -4,6 +4,7 @@
   "references": [
     { "path": "./packages/schema" },
     { "path": "./packages/db" },
+    { "path": "./packages/storage" },
     { "path": "./packages/omr-vector" },
     { "path": "./apps/web/tsconfig.server.json" },
     { "path": "./apps/web/tsconfig.client.json" },

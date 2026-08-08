@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",
+    "@napi-rs/canvas": "^1.0.3",
     "hono": "^4.6.16",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

@@ -1,0 +1,26 @@
+{
+  "name": "@healing/storage",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Cloudflare R2 접근. web 과 omr-worker 가 함께 씁니다.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b tsconfig.json",
+    "typecheck": "tsc -b tsconfig.json"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.716.0",
+    "@aws-sdk/s3-request-presigner": "^3.716.0"
+  }
+}
