@@ -221,14 +221,21 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
 
   // 이상 검출 게이트
   warnings.push(...checkPartBalance(normalized.parts, layout));
-  warnings.push(...checkMeasureDurations(normalized.parts, rests, timeSignature));
+  const durCheck = checkMeasureDurations(normalized.parts, rests, timeSignature);
+  warnings.push(...durCheck.warnings);
 
   const measureCount = Math.max(
     0,
     ...PART_ORDER.flatMap(p => normalized.parts[p].map(n => n.m))
   );
 
-  const confidence = computeConfidence(warnings, normalized.parts, layout);
+  const confidence = computeConfidence(
+    warnings,
+    normalized.parts,
+    layout,
+    "vector",
+    durCheck.ratio
+  );
 
   return {
     parts: normalized.parts,
@@ -333,39 +340,51 @@ function dedupeLyrics(
 }
 
 /**
- * 신뢰도 점수.
+ * 신뢰도 점수. 계산식은 docs/OMR.md 6장 그대로다.
  *
- * 벡터 경로는 기본이 높다. 경고가 있으면 심각도에 따라 깎는다.
+ *   기본 100
+ *     - error 1건당 -20
+ *     - warn  1건당 -8
+ *     - info  1건당 -2
+ *     - 파트 수가 4가 아니면 (단성부 악보 제외) -15
+ *     - 마디 길이 불일치 비율 × 30
+ *     - source === "image"이면 -5
+ *   하한 0, 상한 100
+ *
  * 이 숫자를 사용자에게 그대로 보여주므로 낙관적으로 매기면 안 된다.
+ * 해결된 경고(resolved)는 감점에서 뺀다. 사용자가 확인하면 점수가 오른다.
  */
 function computeConfidence(
   warnings: Warning[],
   parts: Record<Part, Note[]>,
-  layout?: LayoutType
+  layout: LayoutType | undefined,
+  source: "vector" | "image",
+  measureMismatchRatio: number
 ): number {
-  let score = 99;
+  let score = 100;
 
   for (const w of warnings) {
-    if (w.severity === "error") score -= 25;
+    if (w.resolved) continue;
+    if (w.severity === "error") score -= 20;
     else if (w.severity === "warn") score -= 8;
     else score -= 2;
   }
 
-  // 음표가 너무 적으면 신뢰할 수 없다
-  const total = PART_ORDER.reduce((s, p) => s + parts[p].length, 0);
-  if (total < 8) score -= 30;
-  else if (total < 20) score -= 10;
-
   /*
-   * 빈 파트 감점.
+   * 파트 수 감점.
    *
    * 단성부 악보는 빈 파트 3개가 정상이므로 감점하지 않는다. 감점하면
-   * 완벽히 읽힌 악보가 신뢰도 5로 표시되어 사용자가 결과를 의심한다.
+   * 완벽히 읽힌 악보가 낮은 신뢰도로 표시되어 사용자가 결과를 의심한다.
    */
   if (layout !== "single") {
-    const empty = PART_ORDER.filter(p => parts[p].length === 0).length;
-    score -= empty * 12;
+    const filled = PART_ORDER.filter(p => parts[p].length > 0).length;
+    if (filled !== 4) score -= 15;
   }
 
-  return Math.max(5, Math.min(99, Math.round(score)));
+  score -= measureMismatchRatio * 30;
+
+  // 이미지 인식은 벡터보다 근본적으로 불확실하다. 정직하게 알린다.
+  if (source === "image") score -= 5;
+
+  return Math.max(0, Math.min(100, Math.round(score)));
 }

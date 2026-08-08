@@ -128,6 +128,8 @@ export type Warning = {
   part?: Part;
   /** 측정값 등 상세 정보 */
   detail?: Record<string, unknown>;
+  /** 사용자가 확인했거나 교정함. 신뢰도 감점에서 제외된다. docs/OMR.md 6장 */
+  resolved?: boolean;
 };
 
 export type WarningCode =

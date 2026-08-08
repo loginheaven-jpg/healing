@@ -452,7 +452,7 @@ export function checkMeasureDurations(
   parts: Record<Part, Note[]>,
   rests: Record<Part, Rest[]>,
   timeSignature: { numerator: number; denominator: number }
-): Warning[] {
+): { warnings: Warning[]; ratio: number } {
   const expected = (timeSignature.numerator * 4) / timeSignature.denominator;
   const bad: number[] = [];
 
@@ -473,16 +473,27 @@ export function checkMeasureDurations(
     }
   }
 
-  if (bad.length === 0) return [];
-  return [
-    {
-      code: "MEASURE_DURATION_MISMATCH",
-      severity: bad.length > 3 ? "warn" : "info",
-      message: `${bad.length}개 마디의 총 음길이가 박자표(${timeSignature.numerator}/${timeSignature.denominator})와 맞지 않습니다. 해당 마디의 리듬이 부정확할 수 있습니다.`,
-      measures: bad.slice(0, 20),
-      detail: { expected },
-    },
-  ];
+  // 전체 마디 대비 불일치 비율. 신뢰도 계산이 쓴다. docs/OMR.md 6장
+  const allMeasures = new Set<number>();
+  for (const part of PART_ORDER) {
+    for (const n of parts[part]) allMeasures.add(n.m);
+    for (const r of rests[part]) allMeasures.add(r.m);
+  }
+  const ratio = allMeasures.size > 0 ? bad.length / allMeasures.size : 0;
+
+  if (bad.length === 0) return { warnings: [], ratio: 0 };
+  return {
+    warnings: [
+      {
+        code: "MEASURE_DURATION_MISMATCH",
+        severity: bad.length > 3 ? "warn" : "info",
+        message: `${bad.length}개 마디의 총 음길이가 박자표(${timeSignature.numerator}/${timeSignature.denominator})와 맞지 않습니다. 해당 마디의 리듬이 부정확할 수 있습니다.`,
+        measures: bad.slice(0, 20),
+        detail: { expected, ratio },
+      },
+    ],
+    ratio,
+  };
 }
 
 /** 한국어 파트명 */
