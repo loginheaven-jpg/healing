@@ -15,6 +15,7 @@
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 시스템 설계 · 자료형 · API · 배포        |
 | [docs/OMR.md](docs/OMR.md)                   | 악보 인식. 실측 데이터와 확인된 결함 7건 |
 | [docs/TASKS.md](docs/TASKS.md)               | 작업지시서. 단계별 완료 기준             |
+| [docs/DEPLOY.md](docs/DEPLOY.md)             | Railway · Cloudflare 설정 절차           |
 | [docs/decisions/](docs/decisions/)           | 결정 기록 (ADR)                          |
 
 `ui/` 는 화면 시안입니다. **빌드 대상이 아닙니다.**
