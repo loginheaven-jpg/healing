@@ -145,6 +145,30 @@ const PREFIX_RULES: { test: RegExp; resolve: (m: RegExpMatchArray) => GlyphKind 
   { test: /^dots?\b/, resolve: () => ({ type: "dot" }) },
 ];
 
+/**
+ * 무시해도 안전한 글리프 이름 접두사.
+ *
+ * 음악적 의미가 없어 파싱에 쓰이지 않는 장식·구조 기호다.
+ * 이런 것이 UNKNOWN_GLYPH로 올라오면 **진짜 미해석 기호가 잡음에 묻힌다.**
+ * rest_test.pdf의 UNKNOWN_GLYPH 원인이 큰괄호 brace210 하나였다.
+ *
+ * LilyPond의 brace·bracket 글리프는 크기별로 번호가 붙는다
+ * (brace210, brace178 …). 그래서 정확 일치가 아니라 접두사로 잡는다.
+ * docs/tasks/P1.md 3.8
+ */
+const IGNORE_PREFIX = [
+  /^brace/, // 큰괄호 (크기별 번호가 붙는다)
+  /^bracket/, // 대괄호와 그 끝단
+  /^pedal\./, // 페달 표시
+  /^scripts\./, // 아티큘레이션·늘임표
+  /^dynamic/, // 셈여림
+  /^artic/,
+  /^fermata/,
+  /^ornament/,
+  /^tuplet/,
+  /^arpeggio/,
+];
+
 /** 무시해도 안전한 글리프 (경고를 발생시키지 않음) */
 const IGNORE = new Set([
   "space",
@@ -196,9 +220,7 @@ export function resolveGlyph(name: string): GlyphKind | null {
   if (/^uni[0-9A-Fa-f]{4}$/.test(name)) return { type: "other" };
 
   if (IGNORE.has(name)) return { type: "other" };
-  if (/^(scripts|pedal|dynamic|artic|fermata|ornament|tuplet|arpeggio)/.test(name)) {
-    return { type: "other" };
-  }
+  if (IGNORE_PREFIX.some(re => re.test(name))) return { type: "other" };
 
   return null;
 }
