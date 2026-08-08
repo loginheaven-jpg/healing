@@ -189,11 +189,23 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
     }
   }
 
+  /*
+   * 박자표를 찾지 못한 경우.
+   *
+   * 예전에는 이 경고에 MEASURE_DURATION_MISMATCH 코드를 붙였다. 문구는
+   * "박자표를 찾지 못해 4/4로 가정했습니다"인데 코드는 마디 길이 불일치라,
+   * 마디가 완벽한 악보에서도 길이 문제가 있는 것처럼 보였다. closed_chord는
+   * 마디 총 길이가 전부 4.0인데도 이 경고가 떴다.
+   *
+   * 코드와 문구가 어긋나면 화면이 엉뚱한 조치 버튼을 내민다. 박자표 문제에는
+   * 박자표를 고칠 수단을 줘야 한다. docs/SPEC.md 4.4
+   */
   if (!timeSigConfident) {
     warnings.push({
-      code: "MEASURE_DURATION_MISMATCH",
-      severity: "info",
-      message: "박자표를 찾지 못해 4/4로 가정했습니다. 다른 박자라면 재생 속도가 어긋날 수 있습니다.",
+      code: "TIME_SIGNATURE_GUESSED",
+      severity: "warn",
+      message: `박자표를 찾지 못해 ${timeSignature.numerator}/${timeSignature.denominator}로 보았습니다. 다르면 아래에서 고쳐 주세요.`,
+      detail: { assumed: { ...timeSignature } },
     });
   }
 

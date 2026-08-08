@@ -125,6 +125,7 @@ export type WarningCode =
   | "RANGE_VIOLATION"           // 파트 음역 이탈
   | "VOICE_CROSSING"            // 성부 교차
   | "MEASURE_DURATION_MISMATCH" // 마디 총 음길이가 박자표와 불일치
+  | "TIME_SIGNATURE_GUESSED"    // 박자표를 찾지 못해 4/4로 가정
   | "UNKNOWN_GLYPH"             // 사전에 없는 글리프
   | "CLEF_UNRECOGNIZED"         // 음자리표 인식 실패
   | "REPEAT_STRUCTURE"          // 반복 구조 발견 (미지원)

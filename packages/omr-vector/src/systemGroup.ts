@@ -248,19 +248,44 @@ export function readTimeSignature(
     }
   }
 
-  // 개별 숫자 글리프: 위쪽이 분자, 아래쪽이 분모
+  /*
+   * 개별 숫자 글리프: 위가 분자, 아래가 분모.
+   *
+   * 오선 중앙선과 비교해 위아래를 가르면 안 된다. 글리프의 y는 글자 밑선이고,
+   * LilyPond는 분자의 밑선을 정확히 중앙선에 얹는다. rest_test.pdf에서
+   * 분자 "3"이 y=789, 중앙선도 789라 `y > mid`가 거짓이 되어 분자가 통째로
+   * 분모 쪽으로 몰렸고, 3/4 악보가 4/4로 읽혔다.
+   *
+   * 두 숫자를 서로 비교해야 한다. y로 행을 묶고, 위 행이 분자다.
+   * 12/8처럼 자릿수가 둘인 박자표는 한 행에 숫자가 여러 개 오므로
+   * 행 안에서 x순으로 이어 붙인다.
+   */
   const digits = cands
     .filter(c => ((c.kind as { digit?: number }).digit ?? -1) >= 0)
     .map(c => ({ d: (c.kind as { digit: number }).digit, y: c.y, x: c.x }));
 
   if (digits.length >= 2) {
-    const mid = (staff.topY + staff.bottomY) / 2;
-    const upper = digits.filter(d => d.y > mid).sort((a, b) => a.x - b.x);
-    const lower = digits.filter(d => d.y <= mid).sort((a, b) => a.x - b.x);
-    if (upper.length && lower.length) {
-      const num = Number(upper.map(u => u.d).join(""));
-      const den = Number(lower.map(l => l.d).join(""));
-      if (num > 0 && den > 0) {
+    // 같은 행으로 볼 y 허용 오차. 분자와 분모는 오선 간격의 2배쯤 떨어진다.
+    const rowTol = staff.spacing * 0.9;
+    const rows: { y: number; items: { d: number; x: number }[] }[] = [];
+    for (const g of [...digits].sort((a, b) => b.y - a.y)) {
+      const row = rows.find(r => Math.abs(r.y - g.y) <= rowTol);
+      if (row) row.items.push({ d: g.d, x: g.x });
+      else rows.push({ y: g.y, items: [{ d: g.d, x: g.x }] });
+    }
+
+    if (rows.length >= 2) {
+      const join = (r: { items: { d: number; x: number }[] }) =>
+        Number(
+          [...r.items]
+            .sort((a, b) => a.x - b.x)
+            .map(i => i.d)
+            .join("")
+        );
+      const num = join(rows[0]);
+      const den = join(rows[1]);
+      // 분모는 2의 거듭제곱이어야 한다. 손가락 번호 같은 잡음을 거르는 최소 검사.
+      if (num > 0 && den > 0 && (den & (den - 1)) === 0) {
         return { numerator: num, denominator: den, confident: true };
       }
     }
