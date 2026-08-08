@@ -292,7 +292,7 @@ export function parseNotesOnStaff(
   };
 
   // 조표·박자표 영역을 지나친 지점부터 음표로 인정
-  const musicStartX = findMusicStartX(staff, glyphs, barlines);
+  const musicStartX = findMusicStartX(staff, glyphs);
 
   const heads = glyphs.filter(
     g =>
@@ -571,8 +571,14 @@ export function parseNotesOnStaff(
 /**
  * 음악이 시작되는 X좌표를 찾는다.
  * 음자리표·조표·박자표를 음표로 오인하지 않기 위해 필요하다.
+ *
+ * 이식 시점에 barlines 인자를 받았으나 본문에서 쓰지 않았다. 지웠다.
+ * 짐작되는 의도는 "탐색을 첫 마디선 안쪽으로 제한한다" 이다 — 음자리표·조표·
+ * 박자표는 첫 마디선 앞에만 놓이므로 타당한 제약이다. 다만 지금 코드는 그
+ * 제약 없이도 픽스처 전부를 옳게 읽으므로, 근거 없이 동작을 바꾸지 않는다.
+ * 나중에 첫 마디 안의 기호를 조표로 오인하는 악보를 만나면 그때 넣는다.
  */
-function findMusicStartX(staff: Staff, glyphs: Glyph[], barlines: number[]): number {
+function findMusicStartX(staff: Staff, glyphs: Glyph[]): number {
   const sp = staff.spacing;
   let x = staff.x1;
 
