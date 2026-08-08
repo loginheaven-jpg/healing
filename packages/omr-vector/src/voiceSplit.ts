@@ -16,7 +16,7 @@
  */
 
 import type { TimedEvent } from "./noteParse.js";
-import type { ClefType, LayoutType, Note, Part, Staff, Warning } from "./types.js";
+import type { ClefType, LayoutType, Note, Part, Rest, Staff, Warning } from "./types.js";
 
 /**
  * SATB 각 파트의 통상 음역 (MIDI). 이상 검출과 옥타브 보정에 쓴다.
@@ -57,10 +57,19 @@ export function detectLayout(
   const warnings: Warning[] = [];
   const n = staves.length;
 
-  // 오선별 평균 동시발음 수 (화음 밀도)
+  /*
+   * 오선별 평균 동시발음 수 (화음 밀도).
+   *
+   * 쉼표 이벤트(notes가 빈 것)는 분모에서 뺀다. 넣으면 쉼표가 많은 악보의
+   * 밀도가 통째로 낮아져 4성부 악보가 2성부로 오판된다. rest_test.pdf에서
+   * 밀도가 2.0에서 1.43으로 떨어져 VOICE_MISSING 경고가 잘못 떴다.
+   *
+   * 세는 것은 "소리 나는 순간의 평균 성부 수"이지 "이벤트당 음표 수"가 아니다.
+   */
   const density = eventsPerStaff.map(evs => {
-    if (evs.length === 0) return 0;
-    return evs.reduce((s, e) => s + e.notes.length, 0) / evs.length;
+    const sounding = evs.filter(e => e.notes.length > 0);
+    if (sounding.length === 0) return 0;
+    return sounding.reduce((s, e) => s + e.notes.length, 0) / sounding.length;
   });
 
   const clefs = staves.map(s => s.clef);
@@ -188,8 +197,9 @@ export function detectLayout(
 export function splitClosedScore(
   upperEvents: TimedEvent[],
   lowerEvents: TimedEvent[]
-): { parts: Record<Part, Note[]>; warnings: Warning[] } {
+): { parts: Record<Part, Note[]>; rests: Record<Part, Rest[]>; warnings: Warning[] } {
   const parts: Record<Part, Note[]> = { Soprano: [], Alto: [], Tenor: [], Bass: [] };
+  const rests: Record<Part, Rest[]> = { Soprano: [], Alto: [], Tenor: [], Bass: [] };
   const warnings: Warning[] = [];
 
   const unisonMeasures: Record<string, number[]> = {};
@@ -200,7 +210,15 @@ export function splitClosedScore(
       // 음높이 내림차순 정렬. 이것이 성부 배정의 유일한 근거다.
       const sorted = [...e.notes].sort((a, b) => b.midi - a.midi);
 
-      if (sorted.length === 0) continue;
+      /*
+       * 음표가 없는 이벤트는 쉼표다. 파트에 음을 넣지 않고 rests에만 남긴다.
+       * 2단 축소악보는 한 오선이 두 파트를 담으므로 쉼표도 둘 다에 기록한다.
+       */
+      if (sorted.length === 0) {
+        rests[hi].push({ m: e.measure, b: e.beat, d: e.duration });
+        rests[lo].push({ m: e.measure, b: e.beat, d: e.duration });
+        continue;
+      }
 
       if (sorted.length === 1) {
         // 동음 또는 한 성부 휴지
@@ -255,7 +273,7 @@ export function splitClosedScore(
     });
   }
 
-  return { parts, warnings };
+  return { parts, rests, warnings };
 }
 
 /**
@@ -267,8 +285,9 @@ export function splitClosedScore(
 export function splitOpenScore(
   staves: Staff[],
   eventsPerStaff: TimedEvent[][]
-): { parts: Record<Part, Note[]>; warnings: Warning[] } {
+): { parts: Record<Part, Note[]>; rests: Record<Part, Rest[]>; warnings: Warning[] } {
   const parts: Record<Part, Note[]> = { Soprano: [], Alto: [], Tenor: [], Bass: [] };
+  const rests: Record<Part, Rest[]> = { Soprano: [], Alto: [], Tenor: [], Bass: [] };
   const warnings: Warning[] = [];
 
   // 오선별 중위 음높이
@@ -313,7 +332,11 @@ export function splitOpenScore(
     for (const e of eventsPerStaff[i]) {
       // 개방악보라도 한 오선에 화음이 있으면 최고음을 채택한다
       const sorted = [...e.notes].sort((a, b) => b.midi - a.midi);
-      if (sorted.length === 0) continue;
+      // 음표가 없는 이벤트는 쉼표다. 개방악보는 오선 하나가 파트 하나다.
+      if (sorted.length === 0) {
+        rests[part].push({ m: e.measure, b: e.beat, d: e.duration });
+        continue;
+      }
       parts[part].push({ m: e.measure, b: e.beat, d: e.duration, p: sorted[0].midi });
       if (sorted.length > 1) {
         // 개방악보의 화음은 divisi다
@@ -321,7 +344,7 @@ export function splitOpenScore(
     }
   }
 
-  return { parts, warnings };
+  return { parts, rests, warnings };
 }
 
 /**
@@ -427,14 +450,21 @@ export function checkPartBalance(parts: Record<Part, Note[]>, layout?: LayoutTyp
 /** 마디 총 음길이가 박자표와 맞는지 검사 */
 export function checkMeasureDurations(
   parts: Record<Part, Note[]>,
+  rests: Record<Part, Rest[]>,
   timeSignature: { numerator: number; denominator: number }
 ): Warning[] {
   const expected = (timeSignature.numerator * 4) / timeSignature.denominator;
   const bad: number[] = [];
 
+  /*
+   * 쉼표도 마디를 채운다. 음표 길이만 더하면 쉼표로 시작하거나 끝나는
+   * 마디가 항상 짧게 나와 거짓 경고가 뜬다. rest_test.pdf의 3/4 마디는
+   * 4분쉼표 + 8분음표 4개라 음표만 세면 2.0이고, 쉼표를 넣어야 3.0이다.
+   */
   for (const part of PART_ORDER) {
     const byMeasure: Record<number, number> = {};
     for (const n of parts[part]) byMeasure[n.m] = (byMeasure[n.m] ?? 0) + n.d;
+    for (const r of rests[part]) byMeasure[r.m] = (byMeasure[r.m] ?? 0) + r.d;
     const measures = Object.keys(byMeasure).map(Number).sort((a, b) => a - b);
     for (const m of measures) {
       // 첫 마디(못갖춘마디)와 마지막 마디는 짧을 수 있으므로 제외

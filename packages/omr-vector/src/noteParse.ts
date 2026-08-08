@@ -37,6 +37,27 @@ export type RawNote = {
 };
 
 /**
+ * 쉼표 하나.
+ *
+ * 소리를 내지 않지만 박은 전진시킨다. 그래서 음표와 같은 흐름에 실어야 한다.
+ * 음높이가 없으므로 midi도 성부 배정도 없다.
+ */
+export type RawRest = {
+  x: number;
+  y: number;
+  /** 소속 오선 인덱스 */
+  staffIdx: number;
+  /** 마디 번호 */
+  measure: number;
+  /** 확정된 쉼표 길이 (4분쉼표=1.0) */
+  duration: number;
+  /** 부점 개수 */
+  dots: number;
+  /** 글리프 이름 (진단용) */
+  name: string;
+};
+
+/**
  * 오선 위 Y좌표를 MIDI 음높이로 변환한다.
  *
  * @param y        음표머리 중심 Y (PDF 좌표계, 위로 증가)
@@ -204,7 +225,7 @@ export function parseNotesOnStaff(
     above?: { bottomY: number; topY: number };
     below?: { bottomY: number; topY: number };
   }
-): RawNote[] {
+): { notes: RawNote[]; rests: RawRest[] } {
   const sp = staff.spacing;
 
   // 기본 허용범위: 오선 상하로 덧줄 5칸
@@ -501,7 +522,50 @@ export function parseNotesOnStaff(
   }
 
   notes.sort((a, b) => a.x - b.x || b.y - a.y);
-  return notes;
+
+  /*
+   * 쉼표.
+   *
+   * 글리프와 사전은 예전부터 쉼표를 다뤘다. 아무도 읽지 않았을 뿐이다.
+   * 쉼표를 빼고 박을 누적하면 쉼표 길이만큼 뒤 음표가 앞으로 당겨진다.
+   * rest_test.pdf에서 4분쉼표로 시작하는 마디의 첫 8분음표가 b1.00이
+   * 아니라 b0.00에 왔고, 마디 총 길이가 3.0이 아니라 2.0이 되었다.
+   * 반주와 어긋나면 성가대원이 들어올 지점을 놓친다. docs/OMR.md 5.1
+   *
+   * 부점 처리는 음표와 같은 규칙을 쓴다. 점 하나면 1.5배다.
+   */
+  const rests: RawRest[] = [];
+  const restGlyphs = glyphs.filter(
+    g =>
+      g.kind?.type === "rest" &&
+      belongsToThisStaff(g.y, g.x) &&
+      g.x >= musicStartX &&
+      g.x <= staff.x2 + sp
+  );
+
+  for (const r of restGlyphs) {
+    const dotCount = dots.filter(
+      d => Math.abs(d.y - r.y) < sp * 0.9 && d.x > r.x && d.x - r.x < sp * 2.2
+    ).length;
+
+    let duration = (r.kind as { duration: number }).duration;
+    for (let d = 0; d < dotCount; d++) {
+      duration *= 1 + 1 / Math.pow(2, d + 1);
+    }
+
+    rests.push({
+      x: r.x,
+      y: r.y,
+      staffIdx,
+      measure: measureOf(r.x),
+      duration,
+      dots: dotCount,
+      name: r.name,
+    });
+  }
+
+  rests.sort((a, b) => a.x - b.x);
+  return { notes, rests };
 }
 
 /**
@@ -578,44 +642,87 @@ export type TimedEvent = {
  * 이유는 악보가 시간 순서대로 왼쪽에서 오른쪽으로 배치되기 때문이다.
  * X좌표 비례로 계산하면 조판 여백 때문에 틀린다.
  */
-export function toTimedEvents(notes: RawNote[], spacing: number): TimedEvent[] {
-  if (notes.length === 0) return [];
+export function toTimedEvents(
+  notes: RawNote[],
+  rests: RawRest[],
+  spacing: number
+): TimedEvent[] {
+  if (notes.length === 0 && rests.length === 0) return [];
 
   // X로 묶기 (화음 판정 허용 오차)
   const xTol = spacing * 0.9;
-  const groups: RawNote[][] = [];
+
+  type Slot = { measure: number; x: number; duration: number; notes: RawNote[] };
+  const slots: Slot[] = [];
 
   for (const n of notes) {
-    const last = groups[groups.length - 1];
-    if (last && n.measure === last[0].measure && Math.abs(n.x - last[0].x) <= xTol) {
-      last.push(n);
+    const last = slots[slots.length - 1];
+    if (last && n.measure === last.measure && Math.abs(n.x - last.x) <= xTol) {
+      last.notes.push(n);
     } else {
-      groups.push([n]);
+      slots.push({ measure: n.measure, x: n.x, duration: 0, notes: [n] });
     }
   }
+
+  for (const s of slots) {
+    // 화음 내 음길이가 다르면 가장 짧은 것을 채택한다.
+    // 긴 것을 채택하면 다음 음이 밀려 전체 타이밍이 깨진다.
+    s.duration = Math.min(...s.notes.map(n => n.duration));
+  }
+
+  /*
+   * 쉼표도 이벤트다. notes가 빈 이벤트로 실어 박만 전진시킨다.
+   *
+   * 성부 분리 단계는 notes.length === 0인 이벤트를 건너뛰므로 파트에
+   * 음표가 들어가지 않는다. 그러나 beat 누적에는 참여하므로 쉼표 뒤의
+   * 음표가 제 박에 놓인다. docs/tasks/P1.md 3.3
+   *
+   * **같은 시점의 쉼표는 하나로 묶어야 한다.** 화음과 같은 이유다.
+   * 2단 축소악보는 한 오선에 두 성부가 있어 조판이 쉼표를 성부마다
+   * 따로 그린다. rest_test.pdf 상단 오선의 한 마디에 4분쉼표 글리프가
+   * 2개 있고, 그대로 세면 박이 1.0이 아니라 2.0 전진해 첫 음이
+   * b1.00이 아니라 b2.00에 놓인다.
+   *
+   * 그리고 **음표가 이미 있는 시점의 쉼표는 박을 전진시키지 않는다.**
+   * 한 성부는 쉬고 다른 성부는 노래하는 지점이며, 음표 쪽이 이미
+   * 박을 밀고 있다. 둘 다 세면 그만큼 겹쳐 밀린다.
+   */
+  for (const r of [...rests].sort((a, b) => a.measure - b.measure || a.x - b.x)) {
+    const sameSpot = slots.find(
+      s => s.measure === r.measure && Math.abs(s.x - r.x) <= xTol
+    );
+    if (sameSpot) {
+      // 음표 슬롯이면 그대로 두고, 쉼표 슬롯이면 짧은 쪽을 채택한다.
+      if (sameSpot.notes.length === 0) {
+        sameSpot.duration = Math.min(sameSpot.duration, r.duration);
+      }
+      continue;
+    }
+    slots.push({ measure: r.measure, x: r.x, duration: r.duration, notes: [] });
+  }
+
+  // 마디 → X 순으로 정렬해야 박 누적이 조판 순서와 일치한다
+  slots.sort((a, b) => a.measure - b.measure || a.x - b.x);
 
   const events: TimedEvent[] = [];
   let currentMeasure = -1;
   let beat = 0;
 
-  for (const g of groups) {
-    if (g[0].measure !== currentMeasure) {
-      currentMeasure = g[0].measure;
+  for (const s of slots) {
+    if (s.measure !== currentMeasure) {
+      currentMeasure = s.measure;
       beat = 0;
     }
-    // 화음 내 음길이가 다르면 가장 짧은 것을 채택한다.
-    // 긴 것을 채택하면 다음 음이 밀려 전체 타이밍이 깨진다.
-    const dur = Math.min(...g.map(n => n.duration));
-    g.sort((a, b) => b.y - a.y);
+    s.notes.sort((a, b) => b.y - a.y);
 
     events.push({
       measure: currentMeasure,
       beat,
-      duration: dur,
-      notes: g,
-      x: g[0].x,
+      duration: s.duration,
+      notes: s.notes,
+      x: s.x,
     });
-    beat += dur;
+    beat += s.duration;
   }
 
   return events;

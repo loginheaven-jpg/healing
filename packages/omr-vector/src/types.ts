@@ -20,6 +20,19 @@ export type Note = {
   p: number;
 };
 
+/**
+ * 쉼표. 재생에는 쓰이지 않지만 박 위치 계산과 마디 길이 검증에 필요하다.
+ * 쉼표를 버리면 박이 전진하지 않아 뒤 음표가 통째로 앞으로 밀린다.
+ */
+export type Rest = {
+  /** 마디 번호 (1부터) */
+  m: number;
+  /** 마디 내 시작 위치. 4분음표 = 1.0 */
+  b: number;
+  /** 쉼표 길이. 4분쉼표 = 1.0 */
+  d: number;
+};
+
 /** 파싱 중간 표현: 페이지 위 글리프 하나 */
 export type Glyph = {
   /** 폰트 Differences 배열에서 얻은 글리프 이름 (예: "noteheads.s2") */
@@ -137,6 +150,8 @@ export type WarningCode =
 export type ParseResult = {
   /** 파트별 음표 */
   parts: Record<Part, Note[]>;
+  /** 파트별 쉼표. 재생에는 쓰이지 않지만 박 위치 검증에 필요하다 */
+  rests: Record<Part, Rest[]>;
   /** 보표 구조 */
   layout: LayoutType;
   /** 조 (fifths: -7..+7) */

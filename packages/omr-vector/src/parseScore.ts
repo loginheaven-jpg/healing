@@ -12,7 +12,7 @@ import { detectBarlines, parseNotesOnStaff, toTimedEvents, unifyBarlines, type T
 import { extractPdfGeometry, type PageGeometry } from "./pdfExtract.js";
 import { assignClefs, detectStaves } from "./staffDetect.js";
 import { groupIntoSystems, readKeySignature, readTimeSignature } from "./systemGroup.js";
-import type { LayoutType, Note, Part, ParseResult, Staff, Warning } from "./types.js";
+import type { LayoutType, Note, Part, ParseResult, Rest, Staff, Warning } from "./types.js";
 import {
   PART_ORDER,
   checkMeasureDurations,
@@ -71,6 +71,7 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
   }
 
   const parts: Record<Part, Note[]> = { Soprano: [], Alto: [], Tenor: [], Bass: [] };
+  const rests: Record<Part, Rest[]> = { Soprano: [], Alto: [], Tenor: [], Bass: [] };
   const lyrics: { m: number; b: number; text: string }[] = [];
 
   let globalMeasureOffset = 0;
@@ -133,8 +134,8 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
           i + 1 < sysStaves.length
             ? { bottomY: sysStaves[i + 1].bottomY, topY: sysStaves[i + 1].topY }
             : undefined;
-        const notes = parseNotesOnStaff(st, i, page.glyphs, page.rects, bars, { above, below });
-        return toTimedEvents(notes, st.spacing);
+        const parsed = parseNotesOnStaff(st, i, page.glyphs, page.rects, bars, { above, below });
+        return toTimedEvents(parsed.notes, parsed.rests, st.spacing);
       });
 
       // 구조 판별 (첫 시스템 기준으로 고정)
@@ -152,7 +153,7 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
       );
 
       // 성부 분리
-      let split: { parts: Record<Part, Note[]>; warnings: Warning[] };
+      let split: { parts: Record<Part, Note[]>; rests: Record<Part, Rest[]>; warnings: Warning[] };
       /*
        * useStaves가 지정되면 그 오선만 성부로 쓴다. 3단 악보에서
        * 반주 오선을 제외하기 위한 것이다(detectLayout 참조).
@@ -166,14 +167,19 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
       } else {
         // 단성부: 소프라노로만 넣는다
         const parts0: Record<Part, Note[]> = { Soprano: [], Alto: [], Tenor: [], Bass: [] };
+        const rests0: Record<Part, Rest[]> = { Soprano: [], Alto: [], Tenor: [], Bass: [] };
         for (const e of vocal[0] ?? []) {
           const hi = [...e.notes].sort((a, b) => b.midi - a.midi)[0];
           if (hi) parts0.Soprano.push({ m: e.measure, b: e.beat, d: e.duration, p: hi.midi });
+          else rests0.Soprano.push({ m: e.measure, b: e.beat, d: e.duration });
         }
-        split = { parts: parts0, warnings: [] };
+        split = { parts: parts0, rests: rests0, warnings: [] };
       }
 
-      for (const p of PART_ORDER) parts[p].push(...split.parts[p]);
+      for (const p of PART_ORDER) {
+        parts[p].push(...split.parts[p]);
+        rests[p].push(...split.rests[p]);
+      }
       // 시스템별 반복 경고는 첫 시스템만 채택 (같은 경고가 줄마다 쌓이는 것 방지)
       if (globalMeasureOffset === 0) warnings.push(...split.warnings);
 
@@ -215,7 +221,7 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
 
   // 이상 검출 게이트
   warnings.push(...checkPartBalance(normalized.parts, layout));
-  warnings.push(...checkMeasureDurations(normalized.parts, timeSignature));
+  warnings.push(...checkMeasureDurations(normalized.parts, rests, timeSignature));
 
   const measureCount = Math.max(
     0,
@@ -226,6 +232,7 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
 
   return {
     parts: normalized.parts,
+    rests,
     layout,
     keyFifths,
     timeSignature,
