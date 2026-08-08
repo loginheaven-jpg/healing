@@ -1,0 +1,1 @@
+{"version":3,"file":"parseScore.d.ts","sourceRoot":"","sources":["parseScore.ts"],"names":[],"mappings":"AAAA;;;;;;;;GAQG;AAMH,OAAO,KAAK,EAA0B,WAAW,EAAkB,MAAM,YAAY,CAAC;AAWtF,wBAAsB,aAAa,CAAC,IAAI,EAAE,UAAU,GAAG,OAAO,CAAC,WAAW,CAAC,CA0M1E;AAED,6BAA6B;AAC7B,qBAAa,sBAAuB,SAAQ,KAAK;IAC5B,MAAM,EAAE,MAAM;gBAAd,MAAM,EAAE,MAAM;CAIlC"}

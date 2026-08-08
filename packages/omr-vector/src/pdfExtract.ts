@@ -54,6 +54,13 @@ export type PageGeometry = {
   /** 사전에 없던 글리프 이름 */
   unknownGlyphNames: string[];
   /**
+   * 음악 폰트 항목인데 이름도 숫자도 없어 해석하지 못한 것.
+   *
+   * 예전에는 이런 항목이 두 갈래 어디에도 걸리지 않고 흔적 없이 사라졌다.
+   * 버리더라도 기록은 남겨야 다음에 무엇을 놓쳤는지 알 수 있다.
+   */
+  droppedGlyphs: { code: number; unicode: string; x: number; y: number; size: number }[];
+  /**
    * 문자 코드를 유니코드로 신뢰할 수 없었던 폰트 이름들.
    *
    * 비어 있지 않으면 그 PDF의 가사를 읽지 못했다는 뜻이므로, 상위 단계에서
@@ -101,6 +108,7 @@ export async function extractPdfGeometry(data: Uint8Array): Promise<ExtractResul
       rects: [],
       texts: [],
       unknownGlyphNames: [],
+      droppedGlyphs: [],
       untrustedTextFonts: [],
     };
 
@@ -257,20 +265,45 @@ export async function extractPdfGeometry(data: Uint8Array): Promise<ExtractResul
 
             const glyphName = differences[item.originalCharCode] ?? "";
 
-            if (isMusicFont && glyphName) {
-              const kind = resolveGlyph(glyphName);
+            /*
+             * 음악 폰트 항목은 이름이 없어도 버리지 않는다.
+             *
+             * LilyPond는 3/4·6/8 같은 숫자 박자표를 Differences에 이름 없이
+             * 그린다. 예전에는 이 항목이 두 갈래 어디에도 걸리지 않고 흔적 없이
+             * 사라져, 3/4 악보가 4/4로 읽혔다. rest_test.pdf에서 "3"·"4" 4건이
+             * 그렇게 없어졌다. docs/tasks/P1.md 3.1
+             *
+             * unicode가 있으면 그것을 이름 대신 쓰고, 그것도 없으면 최소한
+             * 흔적은 남긴다. 버리더라도 조용히 버리지는 않는다.
+             */
+            const musicName =
+              isMusicFont && !glyphName && item.unicode && /^[0-9]$/.test(item.unicode)
+                ? `digit.${item.unicode}`
+                : glyphName;
+
+            if (isMusicFont && musicName) {
+              const kind = resolveGlyph(musicName);
               if (kind === null) {
-                if (!geo.unknownGlyphNames.includes(glyphName)) {
-                  geo.unknownGlyphNames.push(glyphName);
+                if (!geo.unknownGlyphNames.includes(musicName)) {
+                  geo.unknownGlyphNames.push(musicName);
                 }
               }
               geo.glyphs.push({
-                name: glyphName,
+                name: musicName,
                 kind,
                 x: gx,
                 y: gy,
                 size: renderSize,
                 width: item.width,
+              });
+            } else if (isMusicFont) {
+              // 이름도 숫자도 없는 음악 폰트 항목. 해석할 수는 없으나 기록은 남긴다.
+              geo.droppedGlyphs.push({
+                code: item.originalCharCode,
+                unicode: item.unicode || "",
+                x: gx,
+                y: gy,
+                size: renderSize,
               });
             } else if (
               !isMusicFont &&

@@ -20,7 +20,7 @@
     "dev": "pnpm --filter @healing/web dev",
     "clean": "tsc -b --clean && pnpm -r exec node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
     "r2:smoke": "node --env-file-if-exists=.env --import tsx scripts/r2-smoke.ts",
-    "baseline": "node --import tsx scripts/baseline.mts"
+    "baseline": "pnpm --filter @healing/omr-vector build && node --import tsx scripts/baseline.mts"
   },
   "pnpm": {
     "//": "빌드 스크립트를 허용할 의존성. pnpm 10 은 기본으로 막습니다.",
@@ -32,6 +32,7 @@
     "@aws-sdk/client-s3": "^3.716.0",
     "@aws-sdk/s3-request-presigner": "^3.716.0",
     "@eslint/js": "^9.17.0",
+    "@healing/omr-vector": "workspace:*",
     "@types/node": "^22.10.5",
     "eslint": "^9.17.0",
     "eslint-config-prettier": "^9.1.0",

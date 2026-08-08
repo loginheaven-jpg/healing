@@ -14,8 +14,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseScorePdf } from "../packages/omr-vector/src/parseScore.js";
-import type { Note, Part, ParseResult } from "../packages/omr-vector/src/types.js";
+import { parseScorePdf } from "@healing/omr-vector";
+import type { Note, Part, ParseResult } from "@healing/omr-vector";
 
 const FIXTURES = path.resolve(
   fileURLToPath(new URL(".", import.meta.url)),

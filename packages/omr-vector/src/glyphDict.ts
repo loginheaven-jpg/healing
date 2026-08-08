@@ -120,6 +120,17 @@ const PREFIX_RULES: { test: RegExp; resolve: (m: RegExpMatchArray) => GlyphKind 
   },
   // SMuFL 박자표 숫자: timeSig4
   { test: /^timeSig(\d)$/, resolve: m => ({ type: "timesig", digit: Number(m[1]) }) },
+  /*
+   * 이름 없이 그려진 음악 폰트 숫자. pdfExtract가 unicode로 이름을 지어 준다.
+   *
+   * LilyPond는 3/4·6/8 같은 숫자 박자표를 Differences에 이름 없이 그린다.
+   * 통합 글리프(timesig.C44)를 쓰는 4/4·2/2만 예전에도 읽혔던 이유가 이것이다.
+   *
+   * 박자표 외의 숫자(손가락 번호·잇단음표 숫자)도 여기에 걸리지만,
+   * readTimeSignature가 음자리표 오른쪽 구간과 오선 안쪽으로 범위를 좁히므로
+   * 엉뚱한 숫자가 박자표로 채택되지는 않는다.
+   */
+  { test: /^digit\.(\d)$/, resolve: m => ({ type: "timesig", digit: Number(m[1]) }) },
   // LilyPond 박자표: timesig.C44, timesig.C34 등
   { test: /^timesig\./, resolve: () => ({ type: "timesig", digit: -1 }) },
   // SMuFL 음표머리 변형: noteheadBlackSmall 등

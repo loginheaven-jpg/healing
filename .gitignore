@@ -31,3 +31,4 @@ pnpm-debug.log*
 /mobile.html
 # 브레이스 확장이 실패해 생긴 빈 디렉터리 잔재
 /{docs*
+scripts/probe/
