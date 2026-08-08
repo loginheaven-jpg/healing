@@ -282,3 +282,61 @@ describe("성부별 리듬 차이", () => {
     expect(codes, "경고 목록").toContain("POLYRHYTHM_SUSPECTED");
   });
 });
+
+/**
+ * 악보에 적힌 빠르기.
+ *
+ * **못 찾으면 null 이다. 추정하지 않는다.** 억지로 숫자를 지어내면 재생
+ * 속도가 통째로 어긋나는데, 사용자는 그것이 악보에 적힌 값인 줄 안다.
+ */
+describe("빠르기 표기", () => {
+  it("적힌 빠르기를 읽는다", async () => {
+    // reference_satb.ly 에 \tempo 4 = 82 가 있다
+    const result = await parseScorePdf(loadFixture("reference_satb.pdf"));
+    expect(result.tempoBpm).toBe(82);
+  });
+
+  it("표기가 없으면 null 이고 추정하지 않는다", async () => {
+    // 아래 픽스처들은 악보에 빠르기 표기가 없다.
+    // tenor_octave·wide_tb 는 \midi 블록 안에만 있어 악보에 찍히지 않는다.
+    for (const name of ["rest_test.pdf", "open_satb.pdf", "tenor_octave.pdf", "wide_tb.pdf"]) {
+      const result = await parseScorePdf(loadFixture(name));
+      expect(result.tempoBpm, `${name} 빠르기`).toBeNull();
+    }
+  });
+});
+
+/**
+ * ParseResult 가 @healing/schema 정본과 같은 모양인지.
+ *
+ * 두 인식 경로가 같은 것을 만들어야 한다는 규칙(docs/ARCHITECTURE.md 3장)의
+ * 최소 방어선이다. 필드가 빠지면 이미지 경로를 붙일 때 드러난다.
+ */
+describe("ParseResult 규격", () => {
+  it("schema 가 요구하는 필드를 모두 갖춘다", async () => {
+    const result = await parseScorePdf(loadFixture("rest_test.pdf"));
+    for (const key of [
+      "parts",
+      "rests",
+      "octaveSource",
+      "layout",
+      "keyFifths",
+      "timeSignature",
+      "tempoBpm",
+      "measureCount",
+      "lyrics",
+      "measureBoxes",
+      "warnings",
+      "confidence",
+      "source",
+      "elapsedMs",
+      "pageCount",
+    ]) {
+      expect(result, `${key} 필드`).toHaveProperty(key);
+    }
+    for (const part of PARTS) {
+      expect(result.rests[part], `${part} rests`).toBeInstanceOf(Array);
+      expect(result.octaveSource[part], `${part} octaveSource`).toMatch(/^(clef|range-heuristic)$/);
+    }
+  });
+});

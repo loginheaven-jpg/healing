@@ -380,6 +380,7 @@ Audiveris가 낸 `.mxl`을 공통 스키마로 옮깁니다.
 | 중간 전조 | 미지원 | `KEY_CHANGE_UNSUPPORTED` 경고 |
 | 반복·도돌이·다카포 | 미지원 | `REPEAT_STRUCTURE` 경고 |
 | 성부마다 다른 리듬 | 미지원 | `POLYRHYTHM_SUSPECTED` 경고 |
+| 부분적 리듬 차이 | 미검출 | 마디 길이가 1.8배 미만으로 부푸는 경우는 잡지 못함. 전면 직렬화만 잡음 |
 | 붙임줄(벡터 경로) | 미지원 | `TIE_UNSUPPORTED` 경고 |
 | divisi 3성부 이상 | 최고·최저음만 | `DIVISI_SUSPECTED` 경고 |
 | 못갖춘마디 | 부분 지원 | 첫·마지막 마디는 길이 검사에서 제외 |

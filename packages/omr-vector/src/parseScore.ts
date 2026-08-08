@@ -96,6 +96,8 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
    * 파트 배정은 형태에 따라 달라지므로 오선 단위로 모아 두었다가 뒤에서 옮긴다.
    */
   let octaveByStaff: boolean[] = [];
+  /** 악보에 적힌 빠르기. 못 찾으면 null 이다. 추정하지 않는다 */
+  let tempoBpm: number | null = null;
   /** 화음 안에 서로 다른 음길이가 섞인 마디. docs/tasks/P1.md 3.6 */
   const polyrhythmMeasures = new Set<number>();
 
@@ -127,12 +129,13 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
     for (const sys of systems) {
       const sysStaves = sys.staves;
 
-      // 첫 시스템에서 조·박자·구조를 확정한다
+      // 첫 시스템에서 조·박자·빠르기·구조를 확정한다
       if (!firstSystemSeen) {
         keyFifths = sysStaves[0].keyFifths;
         const ts = readTimeSignature(page.glyphs, sysStaves[0]);
         timeSignature = { numerator: ts.numerator, denominator: ts.denominator };
         timeSigConfident = ts.confident;
+        tempoBpm = readTempoBpm(page, sysStaves[0]);
       }
 
       // 시스템 내 마디선 통합
@@ -333,7 +336,10 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
     layout,
     keyFifths,
     timeSignature,
+    tempoBpm,
     measureCount,
+    // 마디 좌표는 3.10에서 채운다. 산출 실패 시 빈 배열이 규격이다
+    measureBoxes: [],
     lyrics: dedupeLyrics(lyrics),
     warnings,
     confidence,
@@ -444,6 +450,41 @@ function extractLyrics(
 
   void measureOffset;
   return syllables.map(s => ({ m: s.anchor.measure, b: s.anchor.beat, text: s.text }));
+}
+
+/**
+ * 악보에 적힌 빠르기를 읽는다.
+ *
+ * LilyPond는 `	empo 4 = 82`를 **음표 글리프 + "= 82" 텍스트**로 그린다.
+ * 실측(reference_satb.pdf): noteheads.s2@x126,y745 다음에 "="@x135, "8"@x144,
+ * "2"@x151 이 오선 바로 위(topY=739)에 놓였다.
+ *
+ * 첫 오선 바로 위의 좁은 띠만 본다. 제목과 부제는 훨씬 위에 있어(4~8칸)
+ * 걸리지 않는다. 실측에서 제목은 8칸 위, 부제는 4.4칸 위, 빠르기는 0.8칸
+ * 위였다.
+ *
+ * **못 찾으면 null 이다. 추정하지 않는다.** 화면이 기본값을 쓴다.
+ * 억지로 숫자를 지어내면 재생 속도가 통째로 어긋나고, 사용자는 그것이
+ * 악보에 적힌 값인 줄 안다.
+ */
+function readTempoBpm(page: PageGeometry, staff: Staff): number | null {
+  const sp = staff.spacing;
+  const band = page.texts
+    .filter(t => t.y > staff.topY && t.y < staff.topY + sp * 3.5)
+    .sort((a, b) => a.x - b.x);
+  if (band.length === 0) return null;
+
+  // "= 82" 형태를 찾는다. 메트로놈 표기는 반드시 등호를 쓴다.
+  const m = band
+    .map(t => t.text)
+    .join("")
+    .match(/=\s*(\d{2,3})/);
+  if (!m) return null;
+
+  const bpm = Number(m[1]);
+  // 사람이 부를 수 있는 범위 밖이면 다른 숫자를 잘못 읽은 것이다
+  if (!Number.isFinite(bpm) || bpm < 20 || bpm > 300) return null;
+  return bpm;
 }
 
 /**

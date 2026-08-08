@@ -10,6 +10,7 @@
     // 이 코드를 실제로 손보는 P1 에서 다시 판단합니다.
     "noUncheckedIndexedAccess": false
   },
+  "references": [{ "path": "../schema" }],
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.test.ts", "dist", "fixtures"]
 }

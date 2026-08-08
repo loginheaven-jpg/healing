@@ -119,10 +119,26 @@ export type LyricSyllable = {
 
 export type SourceKind = "vector" | "image";
 
+/**
+ * 그 파트의 옥타브를 무엇이 결정했는가. **진단용이며 사용자에게 보이지 않는다.**
+ *
+ *   clef            — 음자리표를 읽어 확정했다. 이것이 정상이다.
+ *   range-heuristic — 음자리표로 알 수 없어 음역을 보고 추측했다.
+ *                     맞을 수도 있지만 근거가 약하다.
+ *
+ * 둘을 구분해 기록하지 않으면 "정확한 결과"와 "우연히 맞은 결과"를 가릴 수 없다.
+ * 옥타브 이조 음자리표(treble_8)는 성가 테너 보표에서 흔하고, 놓치면 한 옥타브가
+ * 통째로 틀린다. 그런데 음역 휴리스틱이 우연히 그것을 덮어 결과만 맞을 수 있다.
+ * 그 경우를 "고쳐졌다"고 착각하지 않기 위한 장치다.
+ */
+export type OctaveSource = "clef" | "range-heuristic";
+
 export type ParseResult = {
   parts: Record<Part, Note[]>;
   /** 파트별 쉼표. 재생에는 안 쓰지만 검증에 쓴다 */
   rests: Record<Part, Rest[]>;
+  /** 진단용: 파트마다 옥타브를 무엇이 결정했는지. 사용자에게 보이지 않는다 */
+  octaveSource: Record<Part, OctaveSource>;
   layout: LayoutType;
   /** 조 (fifths). -7..+7 */
   keyFifths: number;

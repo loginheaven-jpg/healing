@@ -21,6 +21,7 @@
     "typecheck": "tsc -b tsconfig.json"
   },
   "dependencies": {
+    "@healing/schema": "workspace:*",
     "pdfjs-dist": "4.10.38"
   }
 }

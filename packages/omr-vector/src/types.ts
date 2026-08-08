@@ -1,37 +1,33 @@
 /**
- * 벡터 PDF 파싱 파이프라인의 공용 타입.
+ * 벡터 PDF 파싱 파이프라인의 **내부** 타입.
+ *
+ * 도메인 자료형(ParseResult · Note · Rest · Warning · Part …)은 여기에 두지
+ * 않는다. 정본은 `@healing/schema` 이며, "두 인식 경로는 같은 ParseResult 를
+ * 만든다" 는 규칙이 그 패키지에 있다. 정의가 둘로 갈리면 어느 쪽을 import
+ * 했는지에 따라 다르게 동작하므로, 여기서는 **재수출만** 한다.
+ *
+ * 여기 남는 것은 이 파서 안에서만 뜻이 있는 중간 표현이다.
+ * Glyph · GlyphKind · ClefType · Line · FilledRect · Staff.
  *
  * 좌표계 주의: PDF 원본은 Y축이 위로 증가한다(음이 높으면 Y가 크다).
- * 파서 내부에서는 이 PDF 좌표계를 그대로 유지하고, 화면 렌더링 시점에만
+ * 파서 내부에서는 이 PDF 좌표계를 그대로 유지하고, MeasureBox 로 나올 때만
  * 뒤집는다. 중간에 뒤집으면 음높이 계산 부호가 헷갈려 버그가 생긴다.
  */
 
-export type Part = "Soprano" | "Alto" | "Tenor" | "Bass";
-
-/** 클라이언트로 전달되는 음표. 필드명이 짧은 이유는 페이로드 크기 때문. */
-export type Note = {
-  /** 마디 번호 (1부터) */
-  m: number;
-  /** 마디 내 시작 위치. 4분음표 = 1.0 */
-  b: number;
-  /** 음길이. 4분음표 = 1.0 */
-  d: number;
-  /** MIDI 음높이. 60 = C4 */
-  p: number;
-};
-
-/**
- * 쉼표. 재생에는 쓰이지 않지만 박 위치 계산과 마디 길이 검증에 필요하다.
- * 쉼표를 버리면 박이 전진하지 않아 뒤 음표가 통째로 앞으로 밀린다.
- */
-export type Rest = {
-  /** 마디 번호 (1부터) */
-  m: number;
-  /** 마디 내 시작 위치. 4분음표 = 1.0 */
-  b: number;
-  /** 쉼표 길이. 4분쉼표 = 1.0 */
-  d: number;
-};
+export type {
+  LayoutType,
+  LyricSyllable,
+  MeasureBox,
+  Note,
+  OctaveSource,
+  ParseResult,
+  Part,
+  Rest,
+  Severity,
+  SourceKind,
+  Warning,
+  WarningCode,
+} from "@healing/schema";
 
 /** 파싱 중간 표현: 페이지 위 글리프 하나 */
 export type Glyph = {
@@ -70,18 +66,6 @@ export type ClefType =
   | "alto"
   | "tenor";
 
-/**
- * 그 파트의 옥타브를 무엇이 결정했는가. 진단용이며 사용자에게 보이지 않는다.
- *
- *   clef            — 음자리표의 옥타브 표시를 읽어 확정했다. 이것이 정상이다.
- *   range-heuristic — 음자리표로 알 수 없어 음역을 보고 추측했다.
- *                     맞을 수도 있지만 근거가 약하다.
- *
- * 둘을 구분해 기록하지 않으면 "정확한 결과"와 "우연히 맞은 결과"를 가릴 수 없다.
- * docs/tasks/P1.md 3.4
- */
-export type OctaveSource = "clef" | "range-heuristic";
-
 /** 검출된 직선 */
 export type Line = {
   x1: number;
@@ -119,84 +103,4 @@ export type Staff = {
   keyAlters: Record<string, number>;
   /** 조표의 sharp/flat 개수. 양수=sharp, 음수=flat */
   keyFifths: number;
-};
-
-/** 보표 구조 유형 */
-export type LayoutType =
-  /** 2단 축소악보: 높은음자리표=S+A, 낮은음자리표=T+B */
-  | "closed-2staff"
-  /** 4단 개방악보: 각 오선에 한 파트 */
-  | "open-4staff"
-  /** 3단 (S+A / T / B 등) */
-  | "mixed-3staff"
-  /** 단성부 */
-  | "single"
-  /** 판별 실패 */
-  | "unknown";
-
-/** 이상 검출 경고 */
-export type Warning = {
-  /** 경고 코드. SPEC 8.6절 참조 */
-  code: WarningCode;
-  /** 심각도. error는 자동 처리 불가, warn은 확인 권장 */
-  severity: "error" | "warn" | "info";
-  /** 사용자에게 보여줄 한국어 메시지 */
-  message: string;
-  /** 관련 마디 번호 (있으면) */
-  measures?: number[];
-  /** 관련 파트 (있으면) */
-  part?: Part;
-  /** 측정값 등 상세 정보 */
-  detail?: Record<string, unknown>;
-  /** 사용자가 확인했거나 교정함. 신뢰도 감점에서 제외된다. docs/OMR.md 6장 */
-  resolved?: boolean;
-};
-
-export type WarningCode =
-  | "STAFF_COUNT_UNEXPECTED"    // 오선 수가 예상과 다름
-  | "VOICE_MISSING"             // 특정 파트 음표가 현저히 적음
-  | "DIVISI_SUSPECTED"          // 3성부 이상 동시 발생
-  | "UNISON_AMBIGUOUS"          // 동음으로 성부 구분 불가
-  | "RANGE_VIOLATION"           // 파트 음역 이탈
-  | "VOICE_CROSSING"            // 성부 교차
-  | "MEASURE_DURATION_MISMATCH" // 마디 총 음길이가 박자표와 불일치
-  | "TIME_SIGNATURE_GUESSED"    // 박자표를 찾지 못해 4/4로 가정
-  | "UNKNOWN_GLYPH"             // 사전에 없는 글리프
-  | "CLEF_UNRECOGNIZED"         // 음자리표 인식 실패
-  | "REPEAT_STRUCTURE"          // 반복 구조 발견 (미지원)
-  | "MULTI_PAGE"                // 여러 페이지 (경계 연결 주의)
-  | "LYRICS_UNREADABLE"         // ToUnicode 없어 가사 판독 불가
-  | "LOW_GLYPH_COUNT"           // 글리프가 너무 적음 (벡터 아닐 가능성)
-  | "POLYRHYTHM_SUSPECTED"      // 성부마다 리듬이 다름 (docs/OMR.md 5.4)
-  | "TIE_UNSUPPORTED"           // 붙임줄 후보 (벡터 경로 미지원)
-  | "KEY_CHANGE_UNSUPPORTED";   // 중간 전조 미지원
-
-/** 파싱 최종 결과 */
-export type ParseResult = {
-  /** 파트별 음표 */
-  parts: Record<Part, Note[]>;
-  /** 파트별 쉼표. 재생에는 쓰이지 않지만 박 위치 검증에 필요하다 */
-  rests: Record<Part, Rest[]>;
-  /** 진단용: 파트마다 옥타브를 무엇이 결정했는지 */
-  octaveSource: Record<Part, OctaveSource>;
-  /** 보표 구조 */
-  layout: LayoutType;
-  /** 조 (fifths: -7..+7) */
-  keyFifths: number;
-  /** 박자표 */
-  timeSignature: { numerator: number; denominator: number };
-  /** 총 마디 수 */
-  measureCount: number;
-  /** 가사 (마디·박 위치 → 음절) */
-  lyrics: { m: number; b: number; text: string }[];
-  /** 이상 검출 결과 */
-  warnings: Warning[];
-  /** 신뢰도 0..100 */
-  confidence: number;
-  /** 파싱 경로 */
-  source: "vector" | "image";
-  /** 처리 시간 ms */
-  elapsedMs: number;
-  /** 페이지 수 */
-  pageCount: number;
 };

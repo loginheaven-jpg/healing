@@ -244,9 +244,13 @@ type MeasureBox = {
   x: number; y: number; w: number; h: number;  // 페이지 이미지 좌표계(px)
 };
 
+/** 그 파트의 옥타브를 무엇이 결정했는가. 진단용이며 사용자에게 보이지 않는다 */
+type OctaveSource = "clef" | "range-heuristic";
+
 type ParseResult = {
   parts: Record<Part, Note[]>;
   rests: Record<Part, Rest[]>;
+  octaveSource: Record<Part, OctaveSource>;      // 진단용
   layout: LayoutType;
   keyFifths: number;                                   // -7..+7
   timeSignature: { numerator: number; denominator: number };
@@ -269,6 +273,7 @@ type ParseResult = {
 | `rests` | 없음 | 추가 | 쉼표를 버려 박 위치가 밀렸다. `docs/OMR.md` 5.1 |
 | `measureBoxes` | 없음 | 추가 | 악보 뷰 자동 스크롤에 필수 |
 | `tempoBpm` | 없음 | 추가 | 악보의 빠르기를 기본값으로 |
+| `octaveSource` | 없음 | 추가 | 옥타브가 음자리표로 정해졌는지 추측인지 구분. 진단용 |
 | `timeSignature` | 단일 | 단일 유지 | 중간 박자 변경은 1차 미지원. 경고로 알린다 |
 
 ### 4.2 데이터베이스 스키마 (Postgres)
