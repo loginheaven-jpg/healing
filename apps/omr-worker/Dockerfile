@@ -7,25 +7,46 @@
 #   · 레거시 포함 tessdata (kor 약 15MB / eng 약 23MB. apt 판 1.7MB 는 쓸 수 없습니다)
 #
 # 지금 그것들을 넣으면 이미지가 수 GB가 되어 P0 의 배포 확인이 느려집니다.
-FROM node:22-bookworm-slim
 
-ENV NODE_ENV=production
+FROM node:22-bookworm-slim AS build
+
+ENV CI=true \
+    COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+
 WORKDIR /app
-
 RUN corepack enable
 
-# 워크스페이스 해석에 필요한 매니페스트만 먼저 복사해 레이어 캐시를 씁니다.
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml .npmrc ./
 COPY apps/omr-worker/package.json apps/omr-worker/
+COPY apps/web/package.json apps/web/
 COPY packages/schema/package.json packages/schema/
 COPY packages/db/package.json packages/db/
 COPY packages/omr-vector/package.json packages/omr-vector/
-COPY apps/web/package.json apps/web/
 
-RUN pnpm install --frozen-lockfile --filter @healing/omr-worker...
+RUN pnpm install --frozen-lockfile
 
 COPY . .
-RUN pnpm --filter @healing/omr-worker... build \
-    && pnpm prune --prod
+RUN pnpm --filter @healing/omr-worker... build
+
+
+FROM node:22-bookworm-slim AS runtime
+
+ENV NODE_ENV=production \
+    CI=true \
+    COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+
+WORKDIR /app
+RUN corepack enable
+
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml .npmrc ./
+COPY apps/omr-worker/package.json apps/omr-worker/
+COPY apps/web/package.json apps/web/
+COPY packages/schema/package.json packages/schema/
+COPY packages/db/package.json packages/db/
+COPY packages/omr-vector/package.json packages/omr-vector/
+
+RUN pnpm install --frozen-lockfile --prod --filter @healing/omr-worker...
+
+COPY --from=build /app/apps/omr-worker/dist apps/omr-worker/dist
 
 CMD ["node", "apps/omr-worker/dist/index.js"]
