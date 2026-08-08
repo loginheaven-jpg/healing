@@ -237,3 +237,48 @@ describe("옥타브 이조 음자리표", () => {
     expect(med(result.parts.Tenor)).toBeLessThan(med(result.parts.Alto));
   });
 });
+
+/**
+ * 넓은 테너·베이스 간격에 폴리리듬 경고가 붙지 않아야 한다.
+ *
+ * 한때 "화음 안 인접 음 16반음 초과"를 성부 혼합 신호로 썼다가 정상 악보에
+ * 오탐이 났다. **테너와 베이스는 옥타브를 넘어 벌어지는 것이 정상**이고
+ * 찬송가 편곡에서 10도·12도가 흔하다.
+ *
+ * wide_tb.pdf는 처음부터 끝까지 완전 동리듬(4분음표만)이라 폴리리듬이
+ * 존재할 수 없는데, 테너와 베이스가 늘 17~18반음 벌어져 있다.
+ */
+describe("넓은 테너·베이스 간격", () => {
+  it("동리듬 악보에 POLYRHYTHM_SUSPECTED를 붙이지 않는다", async () => {
+    const result = await parseScorePdf(loadFixture("wide_tb.pdf"));
+    const codes = result.warnings.map(w => w.code);
+    expect(codes, "경고 목록").not.toContain("POLYRHYTHM_SUSPECTED");
+  });
+
+  it("네 파트 모두 정답 MIDI와 일치한다", async () => {
+    const result = await parseScorePdf(loadFixture("wide_tb.pdf"));
+    const gt = loadTruth("ground_truth_wide_tb.json");
+    for (const part of PARTS) {
+      expect(result.parts[part].map(n => n.p), `${part} 음높이 배열`).toEqual(gt[part]);
+    }
+  });
+
+  it("테너와 베이스가 실제로 옥타브 넘게 벌어져 있다", async () => {
+    // 픽스처가 그 성질을 잃으면 이 시험은 아무것도 지키지 못한다
+    const result = await parseScorePdf(loadFixture("wide_tb.pdf"));
+    const gaps = result.parts.Tenor.map((t, i) => t.p - (result.parts.Bass[i]?.p ?? t.p));
+    expect(Math.min(...gaps), "테너-베이스 최소 간격").toBeGreaterThan(12);
+  });
+});
+
+/**
+ * closed_hard는 반대쪽 시험이다. 성부마다 리듬이 달라 마디가 부풀어 있다.
+ * 검출 신호를 간격에서 마디 길이로 바꾼 뒤에도 이쪽은 계속 잡혀야 한다.
+ */
+describe("성부별 리듬 차이", () => {
+  it("마디가 부푼 악보에서 POLYRHYTHM_SUSPECTED가 뜬다", async () => {
+    const result = await parseScorePdf(loadFixture("closed_hard.pdf"));
+    const codes = result.warnings.map(w => w.code);
+    expect(codes, "경고 목록").toContain("POLYRHYTHM_SUSPECTED");
+  });
+});

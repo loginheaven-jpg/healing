@@ -13,6 +13,8 @@ export default tseslint.config(
       "ui/**",
       "desktop.html",
       "mobile.html",
+      // 임시 계측 스크립트. .gitignore 대상이며 저장소에 들어가지 않습니다.
+      "scripts/probe/**",
       // 픽스처는 LilyPond·Python 산출물입니다.
       "packages/omr-vector/fixtures/**",
     ],

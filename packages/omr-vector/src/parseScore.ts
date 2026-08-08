@@ -170,15 +170,30 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
       );
 
       /*
-       * 넓은 간격 화음은 **축소악보에서만** 성부 혼합 신호다.
-       * 개방악보는 오선 하나에 파트 하나이므로 넓은 간격은 divisi일 뿐이고,
-       * 그것은 DIVISI_SUSPECTED가 다룬다. 여기서 세면 정상 악보(open_satb)에
-       * 리듬 경고가 잘못 붙는다.
+       * 성부별 리듬 차이의 검출.
+       *
+       * 신호 (1) 화음 안에 서로 다른 음길이가 섞였다. 긴 음을 잘라 냈다는 뜻이다.
+       *
+       * 신호 (2) **마디 총 길이가 부풀었다.** 이것이 직렬화의 직접 증거다.
+       *   한 보표의 두 성부가 다른 리듬으로 움직이면 음표머리의 X가 어긋나
+       *   화음으로 묶이지 않고 순차 이벤트가 된다. 그러면 두 성부의 음길이가
+       *   차례로 더해져 마디가 거의 두 배로 늘어난다.
+       *   closed_hard 실측: 4/4 마디가 b0·2·4·6 으로 8박이 됐다.
+       *
+       * 음정 간격은 신호로 쓰지 않는다. 한때 "인접 음 16반음 초과"를 썼다가
+       * 정상 악보에 오탐이 났다. **테너와 베이스는 옥타브를 넘어 벌어지는
+       * 것이 정상**이고 찬송가 편곡에서 10도·12도가 흔하다. 간격은 직렬화의
+       * 결과일 뿐이니 원인을 본다.
        */
-      const countWide = layout === "closed-2staff";
+      const expectedBeats = (timeSignature.numerator * 4) / timeSignature.denominator;
       for (const evs of shifted) {
+        const perMeasure = new Map<number, number>();
         for (const e of evs) {
-          if (e.mixedRhythm || (countWide && e.wideChord)) polyrhythmMeasures.add(e.measure);
+          if (e.mixedRhythm) polyrhythmMeasures.add(e.measure);
+          perMeasure.set(e.measure, Math.max(perMeasure.get(e.measure) ?? 0, e.beat + e.duration));
+        }
+        for (const [m, total] of perMeasure) {
+          if (total >= expectedBeats * 1.8) polyrhythmMeasures.add(m);
         }
       }
 

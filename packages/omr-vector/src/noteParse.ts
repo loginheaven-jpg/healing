@@ -633,13 +633,7 @@ export type TimedEvent = {
   notes: RawNote[];
   /** 화음 안에 서로 다른 음길이가 섞여 긴 음을 잘라 냈는가 */
   mixedRhythm?: boolean;
-  /**
-   * 화음이라기엔 너무 벌어진 음정 (인접 음 16반음 초과).
-   *
-   * 축소악보에서는 두 성부가 섞인 신호다. 개방악보에서는 divisi일 뿐이므로
-   * 상위에서 형태를 보고 판단한다.
-   */
-  wideChord?: boolean;
+
   /** 원본 X (진단용) */
   x: number;
 };
@@ -668,8 +662,6 @@ export function toTimedEvents(
     notes: RawNote[];
     /** 화음 안에 서로 다른 음길이가 섞여 긴 음을 잘라 냈는가 */
     mixedRhythm?: boolean;
-    /** 화음이라기엔 너무 벌어진 음정. 성부가 섞였을 수 있다 */
-    wideChord?: boolean;
   };
   const slots: Slot[] = [];
 
@@ -696,36 +688,10 @@ export function toTimedEvents(
     const durs = s.notes.map(n => n.duration);
     s.duration = Math.min(...durs);
 
-    // 신호 (1) 화음 안에 서로 다른 음길이가 섞였다. 긴 음을 잘라 냈다.
     if (durs.length > 1 && Math.max(...durs) - s.duration > 0.01) {
       s.mixedRhythm = true;
     }
 
-    /*
-     * 신호 (2) 화음이라기엔 너무 벌어진 음정.
-     *
-     * closed_hard.pdf 실측에서 신호 (1)은 한 번도 걸리지 않았다. 화음 안
-     * 음길이가 전부 균일했기 때문이다. 그런데도 음역은 붕괴해 있었다.
-     *
-     * 실제로 벌어지는 일은 이렇다. 한 보표의 두 성부가 다른 리듬으로
-     * 움직이면 음표머리의 X가 어긋나 **화음으로 묶이지 않고 순차 이벤트로
-     * 직렬화된다.** 그 결과 4/4 마디가 8박이 되고, 서로 다른 성부의 음이
-     * 한 "화음"에 섞인다. 실측: m2에 G5(79)와 E3(52)가 한 이벤트에 들어
-     * 27반음이 벌어졌다.
-     *
-     * 그래서 인접 음 간격이 16반음(옥타브+4도)을 넘으면 성부가 섞인 것으로
-     * 본다. 정상 SATB 축소악보에서 한 오선의 화음은 옥타브 안쪽이다
-     * (closed_chord 실측: 상단 오선 최대 간격 8반음).
-     */
-    if (s.notes.length > 1) {
-      const pitches = s.notes.map(n => n.midi).sort((a, b) => a - b);
-      for (let i = 0; i + 1 < pitches.length; i++) {
-        if (pitches[i + 1] - pitches[i] > 16) {
-          s.wideChord = true;
-          break;
-        }
-      }
-    }
   }
 
   /*
@@ -780,7 +746,6 @@ export function toTimedEvents(
       notes: s.notes,
       x: s.x,
       ...(s.mixedRhythm ? { mixedRhythm: true } : {}),
-      ...(s.wideChord ? { wideChord: true } : {}),
     });
     beat += s.duration;
   }

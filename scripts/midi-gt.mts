@@ -93,17 +93,42 @@ if (!file || partNames.length === 0) {
 
 const tracks = parseMidi(file).filter((t) => t.notes.length > 0);
 
-if (tracks.length !== partNames.length) {
+/**
+ * 2단 축소악보는 보표 하나에 성부가 둘씩 화음으로 겹친다.
+ * 파트 이름을 트랙 수의 두 배로 주면 각 트랙을 상성·하성으로 가른다.
+ * (기존 gen_three_gt.py 가 music21 로 하던 것과 같은 처리다)
+ */
+const chordal = partNames.length === tracks.length * 2;
+
+if (!chordal && tracks.length !== partNames.length) {
   console.error(
-    `음표가 있는 트랙이 ${tracks.length}개인데 파트 이름은 ${partNames.length}개입니다.`,
+    `음표가 있는 트랙이 ${tracks.length}개인데 파트 이름은 ${partNames.length}개입니다.` +
+      ` 트랙당 한 파트면 ${tracks.length}개, 화음으로 두 성부면 ${tracks.length * 2}개를 주십시오.`,
   );
   tracks.forEach((t, i) => console.error(`  트랙${i}: ${t.notes.length}음`));
   process.exit(1);
 }
 
-const gt = Object.fromEntries(
-  partNames.map((name, i) => [name, tracks[i]!.notes.map((n) => n.midi)]),
-);
+const gt: Record<string, number[]> = {};
+
+if (chordal) {
+  tracks.forEach((t, i) => {
+    // 같은 tick 에 울리는 음을 한 화음으로 묶고, 가장 높은/낮은 음을 가른다
+    const byTick = new Map<number, number[]>();
+    for (const n of t.notes) {
+      const list = byTick.get(n.tick) ?? [];
+      list.push(n.midi);
+      byTick.set(n.tick, list);
+    }
+    const ticks = [...byTick.keys()].sort((a, b) => a - b);
+    gt[partNames[i * 2]!] = ticks.map((tk) => Math.max(...byTick.get(tk)!));
+    gt[partNames[i * 2 + 1]!] = ticks.map((tk) => Math.min(...byTick.get(tk)!));
+  });
+} else {
+  tracks.forEach((t, i) => {
+    gt[partNames[i]!] = t.notes.map((n) => n.midi);
+  });
+}
 
 for (const [name, pitches] of Object.entries(gt)) {
   const ps = pitches as number[];

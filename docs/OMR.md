@@ -321,6 +321,28 @@ LilyPond 소스(`.ly`)가 함께 있으므로 픽스처를 재생성하거나 �
 lilypond -dresolution=300 --png -o out rest_test.ly
 ```
 
+**LilyPond 실행 경로 (개발 PC)** — 압축을 푼 것만으로 동작하며 PATH에는 없습니다.
+
+```
+c:devchoruslilypondinlilypond.exe   (2.26.0)
+```
+
+이 폴더는 저장소 바깥에 있고 이전 저장소 이름 아래에 놓여 있습니다.
+**지우면 픽스처를 재생성할 수 없습니다.** 옮기셨다면 이 줄을 고쳐 주십시오.
+
+정답은 MIDI에서 뽑습니다. **손으로 적지 않습니다.**
+
+```bash
+# 오선 하나에 파트 하나 (개방악보)
+node --import tsx scripts/midi-gt.mts <파일.midi> Soprano Alto Tenor Bass
+
+# 오선 하나에 성부 둘 (2단 축소악보) — 파트 이름을 트랙 수의 두 배로 준다
+node --import tsx scripts/midi-gt.mts <파일.midi> Soprano Alto Tenor Bass
+```
+
+`scripts/midi-gt.mts`는 의존성이 없습니다. 기존 `gen_*_gt.py`(python + music21)와
+같은 값을 내는지 `three_staff`로 대조해 확인했습니다.
+
 **새 결함을 발견하면 반드시 픽스처를 추가하십시오.** 재현 없이 고친 것은 고쳤다고 할 수 없습니다.
 
 ---
@@ -361,5 +383,6 @@ Audiveris가 낸 `.mxl`을 공통 스키마로 옮깁니다.
 | 붙임줄(벡터 경로) | 미지원 | `TIE_UNSUPPORTED` 경고 |
 | divisi 3성부 이상 | 최고·최저음만 | `DIVISI_SUSPECTED` 경고 |
 | 못갖춘마디 | 부분 지원 | 첫·마지막 마디는 길이 검사에서 제외 |
+| 덧줄 음의 오선 귀속 | 부분 지원 | 오선 사이 덧줄 음이 인접 오선으로 흡수될 수 있음. 2차에서 다룸 |
 
 **모든 한계는 경고로 사용자에게 알립니다.** 조용히 틀린 결과를 내는 것보다 낫습니다. 이것이 이 프로젝트의 일관된 원칙입니다.

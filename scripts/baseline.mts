@@ -36,6 +36,7 @@ const NAMES = [
   "accidental",
   "rest_test",
   "tenor_octave",
+  "wide_tb",
 ] as const;
 
 const PARTS: Part[] = ["Soprano", "Alto", "Tenor", "Bass"];
