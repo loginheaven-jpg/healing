@@ -333,39 +333,68 @@ function extractLyrics(
   );
   if (zone.length === 0) return [];
 
-  // X순 정렬 후 인접 글자 병합
+  /*
+   * 음절 분할.
+   *
+   * 글자 사이 간격으로 음절을 가르려 하면 안 된다. 실측에서 음절 경계의
+   * 간격(0.59·0.68·0.72 × 폰트크기)이 음절 안쪽 간격(0.61·0.61·0.68)과
+   * 완전히 겹쳤다. 조판이 음표를 촘촘히 놓으면 가사도 똑같이 촘촘해진다.
+   * "Amazing grace"가 A·m·in·gr·h 로 조각난 것이 이 때문이다.
+   *
+   * 훨씬 강한 신호가 있다. **가사 음절은 자기 음표 아래에서 시작해
+   * 오른쪽으로 뻗는다.** 그러니 글자마다 "그 글자보다 왼쪽에 있는 가장
+   * 오른쪽 음표"를 찾아 붙이면, 같은 음표에 붙은 글자들이 곧 한 음절이다.
+   * 간격을 재는 대신 음표 위치를 기준으로 삼는다.
+   *
+   * 한글은 예외 없이 글자마다 나눈다. 한 글자가 한 음절이기 때문이다.
+   * docs/OMR.md 5.6 · docs/tasks/P1.md 3.5
+   */
   zone.sort((a, b) => a.x - b.x);
-  const syllables: { x: number; text: string }[] = [];
-  for (const t of zone) {
-    const last = syllables[syllables.length - 1];
-    // 글자 폭의 60% 이내면 같은 음절로 본다
-    if (last && t.x - last.x < t.size * 0.6) {
-      last.text += t.text;
-    } else {
-      syllables.push({ x: t.x, text: t.text });
-    }
-  }
 
-  // 각 음절을 가장 가까운 이벤트에 붙인다
-  const out: { m: number; b: number; text: string }[] = [];
-  for (const s of syllables) {
-    let best: TimedEvent | null = null;
-    let bestD = Infinity;
-    for (const e of refEvents) {
-      const d = Math.abs(e.x - s.x);
-      if (d < bestD) {
-        bestD = d;
-        best = e;
-      }
-    }
-    // 너무 멀면 가사가 아니라 다른 텍스트(지시어 등)
-    if (best && bestD < sp * 4) {
-      out.push({ m: best.measure, b: best.beat, text: s.text });
-    }
+  // 가사는 소리 나는 음에 붙는다. 쉼표 이벤트는 기준점이 아니다.
+  const anchors = refEvents.filter(e => e.notes.length > 0).sort((a, b) => a.x - b.x);
+  if (anchors.length === 0) return [];
+
+  const isHangul = (ch: string) => {
+    const c = ch.charCodeAt(0);
+    return c >= 0xac00 && c <= 0xd7a3;
+  };
+
+  type Syllable = { anchor: TimedEvent; text: string; startX: number };
+  const syllables: Syllable[] = [];
+  let ai = 0;
+
+  /*
+   * 음절은 음표머리 **중앙에** 놓인다. 글자의 왼쪽 끝을 음표 X와 직접
+   * 비교하면 한 칸씩 밀린다. 실측에서 "ma"의 m이 자기 음표보다 3.6pt
+   * 왼쪽에 있어 앞 음표에 붙었고 결과가 Am·az·inggr 로 어긋났다.
+   *
+   * 그래서 이웃한 두 음표의 **중점**을 음절 경계로 삼는다. 그 사이에
+   * 있는 글자는 모두 그 음표의 음절이다.
+   */
+  const bounds = anchors.slice(0, -1).map((a, i) => (a.x + anchors[i + 1].x) / 2);
+
+  for (const t of zone) {
+    // 붙임표와 공백은 음절 경계다. MusicXML 관례와 같다.
+    if (t.text === "-" || t.text === "‐" || t.text.trim() === "") continue;
+
+    while (ai < bounds.length && t.x >= bounds[ai]) ai++;
+    const anchor = anchors[ai];
+
+    // 첫 음표보다 훨씬 왼쪽이거나 마지막 음표에서 너무 먼 글자는
+    // 가사가 아니라 지시어·제목이다.
+    if (t.x < anchors[0].x - sp * 4 || t.x > anchor.x + sp * 12) continue;
+
+    const last = syllables[syllables.length - 1];
+    const startsNew =
+      !last || last.anchor !== anchor || isHangul(t.text) || isHangul(last.text.slice(-1));
+
+    if (startsNew) syllables.push({ anchor, text: t.text, startX: t.x });
+    else last.text += t.text;
   }
 
   void measureOffset;
-  return out;
+  return syllables.map(s => ({ m: s.anchor.measure, b: s.anchor.beat, text: s.text }));
 }
 
 /** 같은 위치의 가사 중복 제거 */
