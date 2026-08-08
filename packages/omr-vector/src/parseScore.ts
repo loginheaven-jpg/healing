@@ -96,6 +96,8 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
    * 파트 배정은 형태에 따라 달라지므로 오선 단위로 모아 두었다가 뒤에서 옮긴다.
    */
   let octaveByStaff: boolean[] = [];
+  /** 화음 안에 서로 다른 음길이가 섞인 마디. docs/tasks/P1.md 3.6 */
+  const polyrhythmMeasures = new Set<number>();
 
   for (const page of extracted.pages) {
     const bare = detectStaves(page.hLines, page.width);
@@ -167,6 +169,19 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
         evs.map(e => ({ ...e, measure: e.measure + globalMeasureOffset }))
       );
 
+      /*
+       * 넓은 간격 화음은 **축소악보에서만** 성부 혼합 신호다.
+       * 개방악보는 오선 하나에 파트 하나이므로 넓은 간격은 divisi일 뿐이고,
+       * 그것은 DIVISI_SUSPECTED가 다룬다. 여기서 세면 정상 악보(open_satb)에
+       * 리듬 경고가 잘못 붙는다.
+       */
+      const countWide = layout === "closed-2staff";
+      for (const evs of shifted) {
+        for (const e of evs) {
+          if (e.mixedRhythm || (countWide && e.wideChord)) polyrhythmMeasures.add(e.measure);
+        }
+      }
+
       // 성부 분리
       let split: { parts: Record<Part, Note[]>; rests: Record<Part, Rest[]>; warnings: Warning[] };
       /*
@@ -230,6 +245,24 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
     });
   }
 
+  /*
+   * 성부마다 리듬이 다른 지점.
+   *
+   * toTimedEvents가 화음 안 최단 음길이를 채택하므로 긴 음이 잘린다.
+   * 완전 해결은 기둥 방향 기반 성부 분리가 필요해 2차로 미룬다.
+   * 1차에는 검출과 경고까지만 한다. docs/OMR.md 5.4
+   */
+  if (polyrhythmMeasures.size > 0) {
+    const ms = [...polyrhythmMeasures].sort((a, b) => a - b);
+    warnings.push({
+      code: "POLYRHYTHM_SUSPECTED",
+      severity: "warn",
+      message: `${ms.length}개 마디에서 성부마다 리듬이 다릅니다. 재생이 정확하지 않을 수 있습니다.`,
+      measures: ms.slice(0, 20),
+      detail: { count: ms.length },
+    });
+  }
+
   // 옥타브 정규화
   const normalized = normalizeOctave(parts);
   warnings.push(...normalized.warnings);
@@ -263,6 +296,7 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
   warnings.push(...checkPartBalance(normalized.parts, layout));
   const durCheck = checkMeasureDurations(normalized.parts, rests, timeSignature);
   warnings.push(...durCheck.warnings);
+  warnings.push(...detectTieCandidates(normalized.parts));
 
   const measureCount = Math.max(
     0,
@@ -395,6 +429,43 @@ function extractLyrics(
 
   void measureOffset;
   return syllables.map(s => ({ m: s.anchor.measure, b: s.anchor.beat, text: s.text }));
+}
+
+/**
+ * 붙임줄 후보를 찾는다.
+ *
+ * 벡터 경로에서 이음줄 곡선을 검출하기는 어렵다. 1차에는 하지 않는다.
+ * 대신 **같은 음높이가 마디 경계를 넘어 연속**하면 후보로 본다.
+ *
+ * 오탐이 나기 쉽다. 같은 음을 두 번 치는 것과 구별되지 않는다. 그래서
+ * info 등급으로 두어 신뢰도 감점을 2점에 묶는다. 조용히 넘기지는 않는다 —
+ * 이어진 음이 나뉘어 소리 나는 것은 사용자가 알아야 할 사실이다.
+ * docs/OMR.md 5.5 · docs/tasks/P1.md 3.7
+ */
+function detectTieCandidates(parts: Record<Part, Note[]>): Warning[] {
+  const measures = new Set<number>();
+
+  for (const part of PART_ORDER) {
+    const notes = [...parts[part]].sort((a, b) => a.m - b.m || a.b - b.b);
+    for (let i = 0; i + 1 < notes.length; i++) {
+      const a = notes[i];
+      const b = notes[i + 1];
+      // 마디 경계를 넘고, 앞 음이 마디 끝에 닿고, 뒤 음이 마디 머리에서 시작
+      if (b.m === a.m + 1 && b.b === 0 && a.p === b.p) measures.add(b.m);
+    }
+  }
+
+  if (measures.size === 0) return [];
+  const ms = [...measures].sort((a, b) => a - b);
+  return [
+    {
+      code: "TIE_UNSUPPORTED",
+      severity: "info",
+      message: "이어진 음이 있을 수 있습니다. 재생에서는 나누어 소리 납니다.",
+      measures: ms.slice(0, 20),
+      detail: { count: ms.length },
+    },
+  ];
 }
 
 /** 같은 위치의 가사 중복 제거 */

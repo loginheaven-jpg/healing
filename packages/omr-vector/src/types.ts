@@ -166,7 +166,10 @@ export type WarningCode =
   | "REPEAT_STRUCTURE"          // 반복 구조 발견 (미지원)
   | "MULTI_PAGE"                // 여러 페이지 (경계 연결 주의)
   | "LYRICS_UNREADABLE"         // ToUnicode 없어 가사 판독 불가
-  | "LOW_GLYPH_COUNT";          // 글리프가 너무 적음 (벡터 아닐 가능성)
+  | "LOW_GLYPH_COUNT"           // 글리프가 너무 적음 (벡터 아닐 가능성)
+  | "POLYRHYTHM_SUSPECTED"      // 성부마다 리듬이 다름 (docs/OMR.md 5.4)
+  | "TIE_UNSUPPORTED"           // 붙임줄 후보 (벡터 경로 미지원)
+  | "KEY_CHANGE_UNSUPPORTED";   // 중간 전조 미지원
 
 /** 파싱 최종 결과 */
 export type ParseResult = {
