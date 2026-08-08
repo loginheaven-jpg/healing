@@ -155,8 +155,7 @@ export async function extractPdfGeometry(data: Uint8Array): Promise<ExtractResul
         // ToUnicode CMap 유무 판정.
         // pdfjs는 CMap이 있으면 toUnicode._map을 채우고, 없으면
         // {firstChar, lastChar}만 남긴다.
-        const hasToUnicode =
-          Array.isArray(font?.toUnicode?._map) && font.toUnicode._map.length > 0;
+        const hasToUnicode = Array.isArray(font?.toUnicode?._map) && font.toUnicode._map.length > 0;
         // 합성(CID) 폰트인데 ToUnicode가 없으면 문자 코드를 믿을 수 없다.
         // 단일바이트 폰트는 differences로 해석되므로 이 문제가 없다.
         unicodeTrustworthy = !font?.composite || hasToUnicode;
@@ -167,10 +166,10 @@ export async function extractPdfGeometry(data: Uint8Array): Promise<ExtractResul
         // 음악 폰트 판별: 알려진 악보 폰트 이름 또는 글리프 이름 패턴
         isMusicFont =
           /emmentaler|bravura|leland|maestro|opus|petaluma|gonville|feta|smufl|november|sonata|finale/i.test(
-            fname
+            fname,
           ) ||
-          differences.some(d =>
-            /^(noteheads?|clefs?|rests?|accidentals?|flags?|notehead[A-Z]|gClef|fClef)/.test(d)
+          differences.some((d) =>
+            /^(noteheads?|clefs?|rests?|accidentals?|flags?|notehead[A-Z]|gClef|fClef)/.test(d),
           );
       } catch {
         differences = [];
@@ -241,8 +240,7 @@ export async function extractPdfGeometry(data: Uint8Array): Promise<ExtractResul
 
         case OPS.showText: {
           const items = args[0] as (
-            | { originalCharCode: number; unicode: string; width: number; isSpace: boolean }
-            | number
+            { originalCharCode: number; unicode: string; width: number; isSpace: boolean } | number
           )[];
           if (!Array.isArray(items)) break;
 
@@ -383,7 +381,7 @@ function emitLines(
   path: { op: number[]; pts: number[] },
   ctm: Matrix,
   strokeWidth: number,
-  geo: PageGeometry
+  geo: PageGeometry,
 ) {
   const { op, pts } = path;
   // pdfjs 경로 연산자: 13=moveTo, 14=lineTo, 19=rectangle, 16=curveTo …
@@ -428,7 +426,7 @@ function pushLine(
   y2: number,
   ctm: Matrix,
   w: number,
-  geo: PageGeometry
+  geo: PageGeometry,
 ) {
   const [ax, ay] = apply(ctm, x1, y1);
   const [bx, by] = apply(ctm, x2, y2);
@@ -472,9 +470,9 @@ function emitRect(path: { op: number[]; pts: number[] }, ctm: Matrix, geo: PageG
   }
 
   if (poly.length >= 3) {
-    const tx = poly.map(p => apply(ctm, p[0], p[1]));
-    const xs = tx.map(p => p[0]);
-    const ys = tx.map(p => p[1]);
+    const tx = poly.map((p) => apply(ctm, p[0], p[1]));
+    const xs = tx.map((p) => p[0]);
+    const ys = tx.map((p) => p[1]);
     geo.rects.push({
       x: Math.min(...xs),
       y: Math.min(...ys),

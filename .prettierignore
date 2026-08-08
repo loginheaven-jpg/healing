@@ -13,10 +13,5 @@ ui/
 desktop.html
 mobile.html
 
-# 이식된 벡터 파서 소스. P0 의 지시는 "그대로 두고 빌드만 통하게 한다" 입니다.
-# 서식만 바꾼 대량 변경을 만들면 P1 의 실제 수정 diff 가 묻힙니다.
-# 이 파일들을 손보는 P1 에서 함께 정리합니다.
-packages/omr-vector/src/
-
 # 회귀 테스트 픽스처. LilyPond·Python 산출물입니다.
 packages/omr-vector/fixtures/

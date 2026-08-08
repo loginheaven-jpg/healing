@@ -27,7 +27,7 @@ describe("PDF 텍스트 판독", () => {
     const res = await extractPdfGeometry(load("kor_tounicode.pdf"));
     const page = res.pages[0];
 
-    const text = page.texts.map(t => t.text).join("");
+    const text = page.texts.map((t) => t.text).join("");
     expect(text).toContain("주를찬양하여라");
     expect(page.untrustedTextFonts).toHaveLength(0);
   });
@@ -42,7 +42,7 @@ describe("PDF 텍스트 판독", () => {
 
     // 깨진 한글이 하나도 섞이지 않아야 한다.
     // 실제 버그였던 "횵융퍊펥씵"류가 여기서 걸린다.
-    const hangul = page.texts.filter(t => /[\uAC00-\uD7A3]/.test(t.text));
+    const hangul = page.texts.filter((t) => /[\uAC00-\uD7A3]/.test(t.text));
     expect(hangul, "깨진 한글이 남아 있음").toHaveLength(0);
   });
 });

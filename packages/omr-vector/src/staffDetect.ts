@@ -20,13 +20,16 @@ const SPACING_TOLERANCE = 0.18;
  * 수평선 목록에서 오선을 검출한다.
  * 덧줄(ledger line)은 짧으므로 길이 필터로 걸러진다.
  */
-export function detectStaves(hLines: Line[], pageWidth: number): Omit<Staff, "clef" | "keyAlters" | "keyFifths">[] {
+export function detectStaves(
+  hLines: Line[],
+  pageWidth: number,
+): Omit<Staff, "clef" | "keyAlters" | "keyFifths">[] {
   const minLen = pageWidth * MIN_STAFF_LINE_RATIO;
 
   // 충분히 긴 수평선만 후보
   const candidates = hLines
-    .filter(l => Math.abs(l.x2 - l.x1) >= minLen)
-    .map(l => ({
+    .filter((l) => Math.abs(l.x2 - l.x1) >= minLen)
+    .map((l) => ({
       y: (l.y1 + l.y2) / 2,
       x1: Math.min(l.x1, l.x2),
       x2: Math.max(l.x1, l.x2),
@@ -57,16 +60,16 @@ export function detectStaves(hLines: Line[], pageWidth: number): Omit<Staff, "cl
     for (let k = 0; k < 4; k++) gaps.push(group[k].y - group[k + 1].y);
 
     const avg = gaps.reduce((s, g) => s + g, 0) / 4;
-    const uniform = avg > 1 && gaps.every(g => Math.abs(g - avg) <= avg * SPACING_TOLERANCE);
+    const uniform = avg > 1 && gaps.every((g) => Math.abs(g - avg) <= avg * SPACING_TOLERANCE);
 
     if (uniform) {
       staves.push({
-        lineYs: group.map(g => g.y),
+        lineYs: group.map((g) => g.y),
         spacing: avg,
         topY: group[0].y,
         bottomY: group[4].y,
-        x1: Math.min(...group.map(g => g.x1)),
-        x2: Math.max(...group.map(g => g.x2)),
+        x1: Math.min(...group.map((g) => g.x1)),
+        x2: Math.max(...group.map((g) => g.x2)),
       });
       i += 5;
     } else {
@@ -87,7 +90,7 @@ export function detectStaves(hLines: Line[], pageWidth: number): Omit<Staff, "cl
 export function assignClefs(
   staves: Omit<Staff, "clef" | "keyAlters" | "keyFifths">[],
   glyphs: Glyph[],
-  texts: { x: number; y: number; text: string; size: number }[]
+  texts: { x: number; y: number; text: string; size: number }[],
 ): { clefs: ClefType[]; unrecognized: number[]; octaveByClef: boolean[] } {
   const clefs: ClefType[] = [];
   const unrecognized: number[] = [];
@@ -106,12 +109,12 @@ export function assignClefs(
     // 오선 좌측 20% 이내, 오선 상하 범위 ±spacing*2 안의 clef 글리프
     const zoneX = st.x1 + (st.x2 - st.x1) * 0.2;
     const cands = glyphs.filter(
-      g =>
+      (g) =>
         g.kind?.type === "clef" &&
         g.x >= st.x1 - st.spacing * 3 &&
         g.x <= zoneX &&
         g.y >= st.bottomY - st.spacing * 2.5 &&
-        g.y <= st.topY + st.spacing * 2.5
+        g.y <= st.topY + st.spacing * 2.5,
     );
 
     if (cands.length === 0) {
@@ -149,7 +152,7 @@ export function assignClefs(
      */
     const cg = cands[0];
     const octaveMark = (want: string, side: "below" | "above"): boolean =>
-      texts.some(t => {
+      texts.some((t) => {
         if (t.text !== want) return false;
         if (Math.abs(t.x - cg.x) > st.spacing * 1.6) return false;
         return side === "below"

@@ -30,16 +30,17 @@ import type { ClefType, LayoutType, Note, Part, Rest, Staff, Warning } from "./t
  * 명백한 이탈(min/max를 벗어남)에만 발동해야 한다. 중심에서 멀다는
  * 이유만으로 보정하면 정상 악보를 훼손한다.
  */
-export const PART_RANGE: Record<Part, { min: number; max: number; comfortable: [number, number] }> = {
-  // 소프라노: B3(59) ~ C6(84). 실제 성가에서 C6까지 쓴다
-  Soprano: { min: 59, max: 84, comfortable: [64, 81] },
-  // 알토: F3(53) ~ F5(77)
-  Alto: { min: 53, max: 77, comfortable: [57, 74] },
-  // 테너: B2(47) ~ A4(69). treble8vb로 적히므로 실음은 이 범위
-  Tenor: { min: 47, max: 72, comfortable: [52, 69] },
-  // 베이스: E2(40) ~ D4(62)
-  Bass: { min: 38, max: 64, comfortable: [43, 60] },
-};
+export const PART_RANGE: Record<Part, { min: number; max: number; comfortable: [number, number] }> =
+  {
+    // 소프라노: B3(59) ~ C6(84). 실제 성가에서 C6까지 쓴다
+    Soprano: { min: 59, max: 84, comfortable: [64, 81] },
+    // 알토: F3(53) ~ F5(77)
+    Alto: { min: 53, max: 77, comfortable: [57, 74] },
+    // 테너: B2(47) ~ A4(69). treble8vb로 적히므로 실음은 이 범위
+    Tenor: { min: 47, max: 72, comfortable: [52, 69] },
+    // 베이스: E2(40) ~ D4(62)
+    Bass: { min: 38, max: 64, comfortable: [43, 60] },
+  };
 
 export const PART_ORDER: Part[] = ["Soprano", "Alto", "Tenor", "Bass"];
 
@@ -52,7 +53,7 @@ export const PART_ORDER: Part[] = ["Soprano", "Alto", "Tenor", "Bass"];
  */
 export function detectLayout(
   staves: Staff[],
-  eventsPerStaff: TimedEvent[][]
+  eventsPerStaff: TimedEvent[][],
 ): { layout: LayoutType; warnings: Warning[]; useStaves?: number[] } {
   const warnings: Warning[] = [];
   const n = staves.length;
@@ -66,17 +67,16 @@ export function detectLayout(
    *
    * 세는 것은 "소리 나는 순간의 평균 성부 수"이지 "이벤트당 음표 수"가 아니다.
    */
-  const density = eventsPerStaff.map(evs => {
-    const sounding = evs.filter(e => e.notes.length > 0);
+  const density = eventsPerStaff.map((evs) => {
+    const sounding = evs.filter((e) => e.notes.length > 0);
     if (sounding.length === 0) return 0;
     return sounding.reduce((s, e) => s + e.notes.length, 0) / sounding.length;
   });
 
-  const clefs = staves.map(s => s.clef);
+  const clefs = staves.map((s) => s.clef);
 
   if (n === 2) {
-    const isTrebleBass =
-      clefs[0] === "treble" && (clefs[1] === "bass" || clefs[1] === "treble8vb");
+    const isTrebleBass = clefs[0] === "treble" && (clefs[1] === "bass" || clefs[1] === "treble8vb");
     // 두 오선 모두 화음(평균 1.5 이상)이면 2단 축소악보
     const bothChordal = density[0] >= 1.5 && density[1] >= 1.5;
 
@@ -106,15 +106,14 @@ export function detectLayout(
     // 옥타브 이동 음자리표(treble8vb) 또는 테너 음자리표를 쓴다. 반주
     // 악보에는 이런 음자리표가 나타나지 않는다.
     const hasTenorClef = clefs[2] === "treble8vb" || clefs[2] === "tenor";
-    const satbClefShape =
-      clefs[0] === "treble" && clefs[1] === "treble" && clefs[3] === "bass";
+    const satbClefShape = clefs[0] === "treble" && clefs[1] === "treble" && clefs[3] === "bass";
 
     if (satbClefShape && hasTenorClef) {
       return { layout: "open-4staff", warnings };
     }
 
     // 음자리표로 확정되지 않으면 밀도로 보조 판정한다
-    const lowDensity = density.every(d => d < 1.6);
+    const lowDensity = density.every((d) => d < 1.6);
     if (lowDensity) {
       return { layout: "open-4staff", warnings };
     }
@@ -146,7 +145,7 @@ export function detectLayout(
      * 이벤트 수가 성악보다 뚜렷하게 많다. 실측: 성악 7 vs 반주 16.
      * 화음 밀도(동시발음 수)는 반주도 성악처럼 2 이상일 수 있어 근거가 약하다.
      */
-    const counts = eventsPerStaff.map(e => e.length);
+    const counts = eventsPerStaff.map((e) => e.length);
     const vocalMax = Math.max(counts[0], counts[1]);
     // 마지막 오선이 위 두 오선보다 1.6배 이상 촘촘하면 반주로 본다
     const lastIsAccomp = vocalMax > 0 && counts[2] >= vocalMax * 1.6;
@@ -196,7 +195,7 @@ export function detectLayout(
  */
 export function splitClosedScore(
   upperEvents: TimedEvent[],
-  lowerEvents: TimedEvent[]
+  lowerEvents: TimedEvent[],
 ): { parts: Record<Part, Note[]>; rests: Record<Part, Rest[]>; warnings: Warning[] } {
   const parts: Record<Part, Note[]> = { Soprano: [], Alto: [], Tenor: [], Bass: [] };
   const rests: Record<Part, Rest[]> = { Soprano: [], Alto: [], Tenor: [], Bass: [] };
@@ -284,15 +283,15 @@ export function splitClosedScore(
  */
 export function splitOpenScore(
   staves: Staff[],
-  eventsPerStaff: TimedEvent[][]
+  eventsPerStaff: TimedEvent[][],
 ): { parts: Record<Part, Note[]>; rests: Record<Part, Rest[]>; warnings: Warning[] } {
   const parts: Record<Part, Note[]> = { Soprano: [], Alto: [], Tenor: [], Bass: [] };
   const rests: Record<Part, Rest[]> = { Soprano: [], Alto: [], Tenor: [], Bass: [] };
   const warnings: Warning[] = [];
 
   // 오선별 중위 음높이
-  const medians = eventsPerStaff.map(evs => {
-    const all = evs.flatMap(e => e.notes.map(n => n.midi)).sort((a, b) => a - b);
+  const medians = eventsPerStaff.map((evs) => {
+    const all = evs.flatMap((e) => e.notes.map((n) => n.midi)).sort((a, b) => a - b);
     return all.length ? all[Math.floor(all.length / 2)] : 0;
   });
 
@@ -357,9 +356,11 @@ export function splitOpenScore(
  * 벡터 경로에서는 음자리표를 정확히 읽으므로 보통 발동하지 않는다.
  * 발동한다면 그 자체가 인식에 문제가 있다는 신호이므로 경고를 남긴다.
  */
-export function normalizeOctave(
-  parts: Record<Part, Note[]>
-): { parts: Record<Part, Note[]>; warnings: Warning[]; shifted: Record<Part, boolean> } {
+export function normalizeOctave(parts: Record<Part, Note[]>): {
+  parts: Record<Part, Note[]>;
+  warnings: Warning[];
+  shifted: Record<Part, boolean>;
+} {
   const warnings: Warning[] = [];
   const out: Record<Part, Note[]> = { Soprano: [], Alto: [], Tenor: [], Bass: [] };
   /** 음역 추측으로 옥타브를 옮긴 파트. 근거가 음자리표가 아님을 뜻한다. */
@@ -377,7 +378,7 @@ export function normalizeOctave(
       continue;
     }
     const range = PART_RANGE[part];
-    const pitches = notes.map(n => n.p).sort((a, b) => a - b);
+    const pitches = notes.map((n) => n.p).sort((a, b) => a - b);
     const median = pitches[Math.floor(pitches.length / 2)];
 
     // 이미 음역 안에 있으면 절대 건드리지 않는다.
@@ -409,7 +410,7 @@ export function normalizeOctave(
         part,
         detail: { median, shift: bestShift },
       });
-      out[part] = notes.map(n => ({ ...n, p: n.p + bestShift }));
+      out[part] = notes.map((n) => ({ ...n, p: n.p + bestShift }));
       shifted[part] = true;
     } else {
       out[part] = notes;
@@ -435,7 +436,7 @@ export function checkPartBalance(parts: Record<Part, Note[]>, layout?: LayoutTyp
   const warnings: Warning[] = [];
   if (layout === "single") return warnings;
 
-  const counts = PART_ORDER.map(p => parts[p].length);
+  const counts = PART_ORDER.map((p) => parts[p].length);
   const max = Math.max(...counts);
   if (max === 0) return warnings;
 
@@ -459,7 +460,7 @@ export function checkPartBalance(parts: Record<Part, Note[]>, layout?: LayoutTyp
 export function checkMeasureDurations(
   parts: Record<Part, Note[]>,
   rests: Record<Part, Rest[]>,
-  timeSignature: { numerator: number; denominator: number }
+  timeSignature: { numerator: number; denominator: number },
 ): { warnings: Warning[]; ratio: number } {
   const expected = (timeSignature.numerator * 4) / timeSignature.denominator;
   const bad: number[] = [];
@@ -473,7 +474,9 @@ export function checkMeasureDurations(
     const byMeasure: Record<number, number> = {};
     for (const n of parts[part]) byMeasure[n.m] = (byMeasure[n.m] ?? 0) + n.d;
     for (const r of rests[part]) byMeasure[r.m] = (byMeasure[r.m] ?? 0) + r.d;
-    const measures = Object.keys(byMeasure).map(Number).sort((a, b) => a - b);
+    const measures = Object.keys(byMeasure)
+      .map(Number)
+      .sort((a, b) => a - b);
     for (const m of measures) {
       // 첫 마디(못갖춘마디)와 마지막 마디는 짧을 수 있으므로 제외
       if (m === measures[0] || m === measures[measures.length - 1]) continue;

@@ -8,7 +8,13 @@
  * 것이 이 파일의 또 다른 역할이다. 마디 번호를 전역으로 매겨야 한다.
  */
 
-import { detectBarlines, parseNotesOnStaff, toTimedEvents, unifyBarlines, type TimedEvent } from "./noteParse.js";
+import {
+  detectBarlines,
+  parseNotesOnStaff,
+  toTimedEvents,
+  unifyBarlines,
+  type TimedEvent,
+} from "./noteParse.js";
 import { extractPdfGeometry, type PageGeometry } from "./pdfExtract.js";
 import { assignClefs, detectStaves } from "./staffDetect.js";
 import { groupIntoSystems, readKeySignature, readTimeSignature } from "./systemGroup.js";
@@ -53,9 +59,7 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
   }
 
   // 미등록 글리프 집계
-  const unknownAll = Array.from(
-    new Set(extracted.pages.flatMap(p => p.unknownGlyphNames))
-  );
+  const unknownAll = Array.from(new Set(extracted.pages.flatMap((p) => p.unknownGlyphNames)));
   if (unknownAll.length > 0) {
     warnings.push({
       code: "UNKNOWN_GLYPH",
@@ -69,7 +73,7 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
      깨진 글자를 보여주는 대신 가사를 비웠다는 사실을 알려야 한다.
      이유를 모르면 사용자는 "가사가 없는 앱"으로 오해한다. */
   const untrustedFonts = Array.from(
-    new Set(extracted.pages.flatMap(p => p.untrustedTextFonts))
+    new Set(extracted.pages.flatMap((p) => p.untrustedTextFonts)),
   ).filter(Boolean);
   if (untrustedFonts.length > 0) {
     warnings.push({
@@ -142,7 +146,7 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
       }
 
       // 시스템 내 마디선 통합
-      const perStaffBars = sysStaves.map(st => detectBarlines(page.vLines, st));
+      const perStaffBars = sysStaves.map((st) => detectBarlines(page.vLines, st));
       const bars = unifyBarlines(perStaffBars, sysStaves[0].spacing);
 
       // 오선별 음표 → 이벤트
@@ -150,9 +154,7 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
         // 이웃 오선의 경계를 넘겨 음표 흡수를 막는다.
         // 오선은 위에서 아래 순서이므로 i-1이 위, i+1이 아래다.
         const above =
-          i > 0
-            ? { bottomY: sysStaves[i - 1].bottomY, topY: sysStaves[i - 1].topY }
-            : undefined;
+          i > 0 ? { bottomY: sysStaves[i - 1].bottomY, topY: sysStaves[i - 1].topY } : undefined;
         const below =
           i + 1 < sysStaves.length
             ? { bottomY: sysStaves[i + 1].bottomY, topY: sysStaves[i + 1].topY }
@@ -171,8 +173,8 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
       }
 
       // 마디 번호를 전역으로 이동
-      const shifted = eventsPerStaff.map(evs =>
-        evs.map(e => ({ ...e, measure: e.measure + globalMeasureOffset }))
+      const shifted = eventsPerStaff.map((evs) =>
+        evs.map((e) => ({ ...e, measure: e.measure + globalMeasureOffset })),
       );
 
       /*
@@ -209,8 +211,8 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
        * useStaves가 지정되면 그 오선만 성부로 쓴다. 3단 악보에서
        * 반주 오선을 제외하기 위한 것이다(detectLayout 참조).
        */
-      const vocal = useStaves ? useStaves.map(i => shifted[i] ?? []) : shifted;
-      const vocalStaves = useStaves ? useStaves.map(i => sysStaves[i]) : sysStaves;
+      const vocal = useStaves ? useStaves.map((i) => shifted[i] ?? []) : shifted;
+      const vocalStaves = useStaves ? useStaves.map((i) => sysStaves[i]) : sysStaves;
       if (layout === "closed-2staff") {
         split = splitClosedScore(vocal[0] ?? [], vocal[1] ?? []);
       } else if (layout === "open-4staff" || layout === "mixed-3staff") {
@@ -240,7 +242,7 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
           pageNo: pageIdx + 1,
           systemIdx: sysIdx,
           measureOffset: globalMeasureOffset,
-        })
+        }),
       );
 
       // 가사 추출
@@ -249,7 +251,7 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
       // 다음 시스템의 마디 번호 시작점
       const maxM = Math.max(
         globalMeasureOffset,
-        ...shifted.flatMap(evs => evs.map(e => e.measure))
+        ...shifted.flatMap((evs) => evs.map((e) => e.measure)),
       );
       globalMeasureOffset = maxM;
     }
@@ -315,11 +317,11 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
       : { Soprano: 0, Alto: 1, Tenor: 2, Bass: 3 };
 
   const octaveSource = Object.fromEntries(
-    PART_ORDER.map(p => {
+    PART_ORDER.map((p) => {
       if (normalized.shifted[p]) return [p, "range-heuristic" as OctaveSource];
       const si = useStaves ? (useStaves[staffOf[p]] ?? staffOf[p]) : staffOf[p];
       return [p, (octaveByStaff[si] ? "clef" : "range-heuristic") as OctaveSource];
-    })
+    }),
   ) as Record<Part, OctaveSource>;
 
   // 이상 검출 게이트
@@ -330,7 +332,7 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
 
   const measureCount = Math.max(
     0,
-    ...PART_ORDER.flatMap(p => normalized.parts[p].map(n => n.m))
+    ...PART_ORDER.flatMap((p) => normalized.parts[p].map((n) => n.m)),
   );
 
   const confidence = computeConfidence(
@@ -338,7 +340,7 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
     normalized.parts,
     layout,
     "vector",
-    durCheck.ratio
+    durCheck.ratio,
   );
 
   return {
@@ -379,7 +381,7 @@ function extractLyrics(
   page: PageGeometry,
   staves: Staff[],
   eventsPerStaff: TimedEvent[][],
-  measureOffset: number
+  measureOffset: number,
 ): { m: number; b: number; text: string }[] {
   if (staves.length === 0) return [];
   const sp = staves[0].spacing;
@@ -391,11 +393,11 @@ function extractLyrics(
 
   // 오선 아래 1~5칸 구간의 텍스트
   const zone = page.texts.filter(
-    t =>
+    (t) =>
       t.y < refStaff.bottomY - sp * 0.5 &&
       t.y > refStaff.bottomY - sp * 7 &&
       t.x >= refStaff.x1 - sp &&
-      t.x <= refStaff.x2 + sp
+      t.x <= refStaff.x2 + sp,
   );
   if (zone.length === 0) return [];
 
@@ -418,7 +420,7 @@ function extractLyrics(
   zone.sort((a, b) => a.x - b.x);
 
   // 가사는 소리 나는 음에 붙는다. 쉼표 이벤트는 기준점이 아니다.
-  const anchors = refEvents.filter(e => e.notes.length > 0).sort((a, b) => a.x - b.x);
+  const anchors = refEvents.filter((e) => e.notes.length > 0).sort((a, b) => a.x - b.x);
   if (anchors.length === 0) return [];
 
   const isHangul = (ch: string) => {
@@ -460,7 +462,7 @@ function extractLyrics(
   }
 
   void measureOffset;
-  return syllables.map(s => ({ m: s.anchor.measure, b: s.anchor.beat, text: s.text }));
+  return syllables.map((s) => ({ m: s.anchor.measure, b: s.anchor.beat, text: s.text }));
 }
 
 /**
@@ -485,15 +487,15 @@ function buildMeasureBoxes(
   sysStaves: Staff[],
   bars: number[],
   eventsPerStaff: TimedEvent[][],
-  ctx: { pageNo: number; systemIdx: number; measureOffset: number }
+  ctx: { pageNo: number; systemIdx: number; measureOffset: number },
 ): MeasureBox[] {
   if (sysStaves.length === 0) return [];
 
   // 시스템의 세로 범위: 맨 위 오선의 윗줄 ~ 맨 아래 오선의 아랫줄
-  const top = Math.max(...sysStaves.map(s => s.topY));
-  const bottom = Math.min(...sysStaves.map(s => s.bottomY));
-  const left = Math.min(...sysStaves.map(s => s.x1));
-  const right = Math.max(...sysStaves.map(s => s.x2));
+  const top = Math.max(...sysStaves.map((s) => s.topY));
+  const bottom = Math.min(...sysStaves.map((s) => s.bottomY));
+  const left = Math.min(...sysStaves.map((s) => s.x1));
+  const right = Math.max(...sysStaves.map((s) => s.x2));
   if (!(top > bottom) || !(right > left)) return [];
 
   /*
@@ -503,10 +505,7 @@ function buildMeasureBoxes(
    * 없으면 하나 덜 센다. 음표가 실제로 놓인 마디 번호를 쓰는 편이 확실하다.
    * (noteParse.measureOf 와 같은 기준이라 음표와 상자가 어긋나지 않는다)
    */
-  const localMax = Math.max(
-    0,
-    ...eventsPerStaff.flatMap(evs => evs.map(e => e.measure))
-  );
+  const localMax = Math.max(0, ...eventsPerStaff.flatMap((evs) => evs.map((e) => e.measure)));
   if (localMax === 0) return [];
 
   /** 지역 마디 번호 k(1부터)의 좌우 경계. measureOf 의 규칙을 그대로 뒤집은 것 */
@@ -551,13 +550,13 @@ function buildMeasureBoxes(
 function readTempoBpm(page: PageGeometry, staff: Staff): number | null {
   const sp = staff.spacing;
   const band = page.texts
-    .filter(t => t.y > staff.topY && t.y < staff.topY + sp * 3.5)
+    .filter((t) => t.y > staff.topY && t.y < staff.topY + sp * 3.5)
     .sort((a, b) => a.x - b.x);
   if (band.length === 0) return null;
 
   // "= 82" 형태를 찾는다. 메트로놈 표기는 반드시 등호를 쓴다.
   const m = band
-    .map(t => t.text)
+    .map((t) => t.text)
     .join("")
     .match(/=\s*(\d{2,3})/);
   if (!m) return null;
@@ -607,7 +606,7 @@ function detectTieCandidates(parts: Record<Part, Note[]>): Warning[] {
 
 /** 같은 위치의 가사 중복 제거 */
 function dedupeLyrics(
-  lyrics: { m: number; b: number; text: string }[]
+  lyrics: { m: number; b: number; text: string }[],
 ): { m: number; b: number; text: string }[] {
   const seen = new Map<string, { m: number; b: number; text: string }>();
   for (const l of lyrics) {
@@ -637,7 +636,7 @@ function computeConfidence(
   parts: Record<Part, Note[]>,
   layout: LayoutType | undefined,
   source: "vector" | "image",
-  measureMismatchRatio: number
+  measureMismatchRatio: number,
 ): number {
   let score = 100;
 
@@ -655,7 +654,7 @@ function computeConfidence(
    * 완벽히 읽힌 악보가 낮은 신뢰도로 표시되어 사용자가 결과를 의심한다.
    */
   if (layout !== "single") {
-    const filled = PART_ORDER.filter(p => parts[p].length > 0).length;
+    const filled = PART_ORDER.filter((p) => parts[p].length > 0).length;
     if (filled !== 4) score -= 15;
   }
 

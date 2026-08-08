@@ -68,8 +68,8 @@ export function groupIntoSystems(staves: Staff[], vLines: Line[]): StaffSystem[]
 function makeSystem(staves: Staff[]): StaffSystem {
   return {
     staves,
-    x1: Math.min(...staves.map(s => s.x1)),
-    x2: Math.max(...staves.map(s => s.x2)),
+    x1: Math.min(...staves.map((s) => s.x1)),
+    x2: Math.max(...staves.map((s) => s.x2)),
   };
 }
 
@@ -89,15 +89,15 @@ function groupByLeftBracket(staves: Staff[], vLines: Line[]): StaffSystem[] | nu
 
   // 어떤 오선이든 그 오선의 좌측 끝 근처에 있는 긴 세로선을 후보로 삼는다.
   const connectors = vLines
-    .filter(l => {
+    .filter((l) => {
       const x = (l.x1 + l.x2) / 2;
       const len = Math.abs(l.y2 - l.y1);
       if (len <= spacing * 5) return false;
       // 오선 1개 높이(spacing*4)보다 확실히 길어야 여러 오선을 잇는 선이다.
       // 세로선의 X가 어느 오선의 좌측 끝과 가까운지 확인한다.
-      return staves.some(s => Math.abs(x - s.x1) < spacing * 4);
+      return staves.some((s) => Math.abs(x - s.x1) < spacing * 4);
     })
-    .map(l => ({
+    .map((l) => ({
       top: Math.max(l.y1, l.y2),
       bottom: Math.min(l.y1, l.y2),
     }))
@@ -138,7 +138,7 @@ function groupByLeftBracket(staves: Staff[], vLines: Line[]): StaffSystem[] | nu
   if (used.size !== staves.length) return null;
   // 시스템마다 오선 개수가 다르면 조판 구조를 잘못 읽은 것이다.
   // (마지막 시스템만 짧은 경우는 정상이나, 그런 악보는 간격 기반으로 넘긴다)
-  const counts = new Set(systems.map(s => s.staves.length));
+  const counts = new Set(systems.map((s) => s.staves.length));
   if (counts.size > 1) return null;
   // 시스템이 1개뿐이면 연결선 기반 판정이 의미가 없다.
   // 실제로 한 줄짜리 악보일 수도 있으므로 오선 수로 재확인한다.
@@ -159,7 +159,7 @@ const FLAT_ORDER = ["B", "E", "A", "D", "G", "C", "F"];
 
 export function readKeySignature(
   staff: Staff,
-  glyphs: { kind: { type: string; alter?: number } | null; x: number; y: number }[]
+  glyphs: { kind: { type: string; alter?: number } | null; x: number; y: number }[],
 ): { fifths: number; alters: Record<string, number> } {
   // 음자리표 뒤 ~ 오선 폭의 25% 이내 구간
   const zoneEnd = staff.x1 + (staff.x2 - staff.x1) * 0.25;
@@ -176,24 +176,25 @@ export function readKeySignature(
    * 임시표는 반드시 자기 음표 바로 왼쪽에 붙는다.
    */
   const heads = glyphs.filter(
-    g =>
+    (g) =>
       g.kind?.type === "notehead" &&
       g.y >= staff.bottomY - staff.spacing * 4 &&
-      g.y <= staff.topY + staff.spacing * 4
+      g.y <= staff.topY + staff.spacing * 4,
   );
   const hasOwnNote = (a: { x: number; y: number }) =>
     heads.some(
-      h => h.x > a.x && h.x - a.x < staff.spacing * 2.6 && Math.abs(h.y - a.y) < staff.spacing / 3
+      (h) =>
+        h.x > a.x && h.x - a.x < staff.spacing * 2.6 && Math.abs(h.y - a.y) < staff.spacing / 3,
     );
 
   const accs = glyphs.filter(
-    g =>
+    (g) =>
       g.kind?.type === "accidental" &&
       g.x >= staff.x1 &&
       g.x <= zoneEnd &&
       g.y >= staff.bottomY - staff.spacing * 2 &&
       g.y <= staff.topY + staff.spacing * 2 &&
-      !hasOwnNote(g)
+      !hasOwnNote(g),
   );
 
   let sharps = 0;
@@ -225,16 +226,16 @@ export function readKeySignature(
  */
 export function readTimeSignature(
   glyphs: { name: string; kind: { type: string; digit?: number } | null; x: number; y: number }[],
-  staff: Staff
+  staff: Staff,
 ): { numerator: number; denominator: number; confident: boolean } {
   const zoneEnd = staff.x1 + (staff.x2 - staff.x1) * 0.3;
   const cands = glyphs.filter(
-    g =>
+    (g) =>
       g.kind?.type === "timesig" &&
       g.x >= staff.x1 &&
       g.x <= zoneEnd &&
       g.y >= staff.bottomY - staff.spacing * 2 &&
-      g.y <= staff.topY + staff.spacing * 2
+      g.y <= staff.topY + staff.spacing * 2,
   );
 
   // 통합 글리프 이름에서 숫자 추출: timesig.C44 → 4/4
@@ -261,15 +262,15 @@ export function readTimeSignature(
    * 행 안에서 x순으로 이어 붙인다.
    */
   const digits = cands
-    .filter(c => ((c.kind as { digit?: number }).digit ?? -1) >= 0)
-    .map(c => ({ d: (c.kind as { digit: number }).digit, y: c.y, x: c.x }));
+    .filter((c) => ((c.kind as { digit?: number }).digit ?? -1) >= 0)
+    .map((c) => ({ d: (c.kind as { digit: number }).digit, y: c.y, x: c.x }));
 
   if (digits.length >= 2) {
     // 같은 행으로 볼 y 허용 오차. 분자와 분모는 오선 간격의 2배쯤 떨어진다.
     const rowTol = staff.spacing * 0.9;
     const rows: { y: number; items: { d: number; x: number }[] }[] = [];
     for (const g of [...digits].sort((a, b) => b.y - a.y)) {
-      const row = rows.find(r => Math.abs(r.y - g.y) <= rowTol);
+      const row = rows.find((r) => Math.abs(r.y - g.y) <= rowTol);
       if (row) row.items.push({ d: g.d, x: g.x });
       else rows.push({ y: g.y, items: [{ d: g.d, x: g.x }] });
     }
@@ -279,8 +280,8 @@ export function readTimeSignature(
         Number(
           [...r.items]
             .sort((a, b) => a.x - b.x)
-            .map(i => i.d)
-            .join("")
+            .map((i) => i.d)
+            .join(""),
         );
       const num = join(rows[0]);
       const den = join(rows[1]);

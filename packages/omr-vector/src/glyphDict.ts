@@ -108,18 +108,29 @@ const PREFIX_RULES: { test: RegExp; resolve: (m: RegExpMatchArray) => GlyphKind 
   // 숫자 3=8분음표, 4=16분음표, 5=32분음표 …
   {
     test: /^flags\.[ud](\d)$/,
-    resolve: m => ({ type: "flag", count: Math.max(1, Number(m[1]) - 2) }),
+    resolve: (m) => ({ type: "flag", count: Math.max(1, Number(m[1]) - 2) }),
   },
   // LilyPond 숫자 (박자표): zero, one, two, three, four…
   {
     test: /^(zero|one|two|three|four|five|six|seven|eight|nine)$/,
-    resolve: m => ({
+    resolve: (m) => ({
       type: "timesig",
-      digit: ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"].indexOf(m[1]),
+      digit: [
+        "zero",
+        "one",
+        "two",
+        "three",
+        "four",
+        "five",
+        "six",
+        "seven",
+        "eight",
+        "nine",
+      ].indexOf(m[1]),
     }),
   },
   // SMuFL 박자표 숫자: timeSig4
-  { test: /^timeSig(\d)$/, resolve: m => ({ type: "timesig", digit: Number(m[1]) }) },
+  { test: /^timeSig(\d)$/, resolve: (m) => ({ type: "timesig", digit: Number(m[1]) }) },
   /*
    * 이름 없이 그려진 음악 폰트 숫자. pdfExtract가 unicode로 이름을 지어 준다.
    *
@@ -130,7 +141,7 @@ const PREFIX_RULES: { test: RegExp; resolve: (m: RegExpMatchArray) => GlyphKind 
    * readTimeSignature가 음자리표 오른쪽 구간과 오선 안쪽으로 범위를 좁히므로
    * 엉뚱한 숫자가 박자표로 채택되지는 않는다.
    */
-  { test: /^digit\.(\d)$/, resolve: m => ({ type: "timesig", digit: Number(m[1]) }) },
+  { test: /^digit\.(\d)$/, resolve: (m) => ({ type: "timesig", digit: Number(m[1]) }) },
   // LilyPond 박자표: timesig.C44, timesig.C34 등
   { test: /^timesig\./, resolve: () => ({ type: "timesig", digit: -1 }) },
   // SMuFL 음표머리 변형: noteheadBlackSmall 등
@@ -220,7 +231,7 @@ export function resolveGlyph(name: string): GlyphKind | null {
   if (/^uni[0-9A-Fa-f]{4}$/.test(name)) return { type: "other" };
 
   if (IGNORE.has(name)) return { type: "other" };
-  if (IGNORE_PREFIX.some(re => re.test(name))) return { type: "other" };
+  if (IGNORE_PREFIX.some((re) => re.test(name))) return { type: "other" };
 
   return null;
 }

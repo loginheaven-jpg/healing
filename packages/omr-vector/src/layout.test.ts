@@ -23,12 +23,12 @@ describe("단성부 악보", () => {
   it("single로 판별하고 음높이를 100% 읽는다", async () => {
     const r = await parseScorePdf(read("single_staff.pdf"));
     expect(r.layout).toBe("single");
-    expect(r.parts.Soprano.map(n => n.p)).toEqual(gt("ground_truth_single.json").Melody);
+    expect(r.parts.Soprano.map((n) => n.p)).toEqual(gt("ground_truth_single.json").Melody);
   });
 
   it("4파트가 없다는 이유로 실패 경고를 내지 않는다", async () => {
     const r = await parseScorePdf(read("single_staff.pdf"));
-    const voiceMissing = r.warnings.filter(w => w.code === "VOICE_MISSING");
+    const voiceMissing = r.warnings.filter((w) => w.code === "VOICE_MISSING");
     expect(voiceMissing, "단성부는 4파트가 없는 것이 정상").toHaveLength(0);
   });
 
@@ -45,19 +45,22 @@ describe("3단 혼합 악보 (성악 2단 + 반주 1단)", () => {
     const r = await parseScorePdf(read("three_staff.pdf"));
     const g = gt("ground_truth_three.json");
     for (const part of ["Soprano", "Alto", "Tenor", "Bass"] as const) {
-      expect(r.parts[part].map(n => n.p), `${part} 파트`).toEqual(g[part]);
+      expect(
+        r.parts[part].map((n) => n.p),
+        `${part} 파트`,
+      ).toEqual(g[part]);
     }
   });
 
   it("반주를 성부로 착각해 옥타브 보정을 발동시키지 않는다", async () => {
     const r = await parseScorePdf(read("three_staff.pdf"));
     // 반주 오선을 테너로 배정하면 음역 이탈로 RANGE_VIOLATION이 쏟아진다
-    expect(r.warnings.filter(w => w.code === "RANGE_VIOLATION")).toHaveLength(0);
+    expect(r.warnings.filter((w) => w.code === "RANGE_VIOLATION")).toHaveLength(0);
   });
 
   it("반주 판별 사실을 사용자에게 알린다", async () => {
     const r = await parseScorePdf(read("three_staff.pdf"));
-    const notice = r.warnings.find(w => w.message.includes("반주"));
+    const notice = r.warnings.find((w) => w.message.includes("반주"));
     expect(notice, "판단 근거를 숨기지 않아야 한다").toBeDefined();
   });
 });

@@ -46,25 +46,18 @@ export type Glyph = {
 
 /** 글리프의 음악적 의미 */
 export type GlyphKind =
-  | { type: "notehead"; duration: number }        // duration: 4분음표=1.0, 0=기둥으로 판정
+  | { type: "notehead"; duration: number } // duration: 4분음표=1.0, 0=기둥으로 판정
   | { type: "clef"; clef: ClefType }
   | { type: "rest"; duration: number }
-  | { type: "accidental"; alter: number }          // -2..+2
-  | { type: "dot" }                                // 점(부점) — 음길이 1.5배
-  | { type: "flag"; count: number }                // 꼬리 — 8분음표 이하
+  | { type: "accidental"; alter: number } // -2..+2
+  | { type: "dot" } // 점(부점) — 음길이 1.5배
+  | { type: "flag"; count: number } // 꼬리 — 8분음표 이하
   | { type: "timesig"; digit: number }
-  | { type: "brace" }                              // 보표 묶음 표시
+  | { type: "brace" } // 보표 묶음 표시
   | { type: "other" };
 
 export type ClefType =
-  | "treble"
-  | "treble8va"
-  | "treble8vb"
-  | "treble15mb"
-  | "bass"
-  | "bass8vb"
-  | "alto"
-  | "tenor";
+  "treble" | "treble8va" | "treble8vb" | "treble15mb" | "bass" | "bass8vb" | "alto" | "tenor";
 
 /** 검출된 직선 */
 export type Line = {

@@ -24,21 +24,21 @@ describe("임시표 처리", () => {
     const gt = JSON.parse(fs.readFileSync(path.join(FIX, "ground_truth_accidental.json"), "utf8"));
 
     // 2단 축소악보이므로 상단 선율 = Soprano, 하단 선율 = Bass
-    expect(r.parts.Soprano.map(n => n.p)).toEqual(gt.Treble);
-    expect(r.parts.Bass.map(n => n.p)).toEqual(gt.Bass);
+    expect(r.parts.Soprano.map((n) => n.p)).toEqual(gt.Treble);
+    expect(r.parts.Bass.map((n) => n.p)).toEqual(gt.Bass);
   });
 
   it("마디 안에서 임시표가 지속된다", async () => {
     const r = await parseScorePdf(read("accidental.pdf"));
     // 1마디: F#5 F#5 G5 F#5 — sharp 글리프는 첫 음표에만 있다
-    const m1 = r.parts.Soprano.filter(n => n.m === 1).map(n => n.p);
+    const m1 = r.parts.Soprano.filter((n) => n.m === 1).map((n) => n.p);
     expect(m1).toEqual([78, 78, 79, 78]);
   });
 
   it("마디선을 넘으면 임시표가 초기화된다", async () => {
     const r = await parseScorePdf(read("accidental.pdf"));
     // 2마디: F5 F5 G5 A5 — 1마디의 sharp가 넘어오면 안 된다
-    const m2 = r.parts.Soprano.filter(n => n.m === 2).map(n => n.p);
+    const m2 = r.parts.Soprano.filter((n) => n.m === 2).map((n) => n.p);
     expect(m2).toEqual([77, 77, 79, 81]);
   });
 

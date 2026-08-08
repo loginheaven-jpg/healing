@@ -47,11 +47,11 @@ function loadTruth(name: string): GroundTruth {
 /** 파트별 음높이 일치율을 센다 */
 function scorePitches(
   got: Record<Part, { p: number }[]>,
-  truth: GroundTruth
+  truth: GroundTruth,
 ): { part: Part; correct: number; total: number }[] {
-  return PARTS.map(part => {
+  return PARTS.map((part) => {
     const expected = truthFor(truth, part);
-    const actual = got[part].map(n => n.p);
+    const actual = got[part].map((n) => n.p);
     let correct = 0;
     for (let i = 0; i < expected.length; i++) {
       if (actual[i] === expected[i]) correct++;
@@ -103,7 +103,7 @@ describe("벡터 PDF 파서 — 2단 축소악보", () => {
     const result = await parseScorePdf(loadFixture("closed_chord.pdf"));
 
     expect(result.lyrics).toHaveLength(0);
-    const warn = result.warnings.find(w => w.code === "LYRICS_UNREADABLE");
+    const warn = result.warnings.find((w) => w.code === "LYRICS_UNREADABLE");
     expect(warn, "가사 판독 불가 경고").toBeDefined();
     expect(warn?.severity).toBe("info");
     // 음표·연주는 정상이라는 점이 메시지에 담겨야 한다
@@ -137,7 +137,7 @@ describe("벡터 PDF 파서 — 4단 개방악보", () => {
   it("여러 시스템(악보 줄)의 마디 번호를 이어붙인다", async () => {
     const result = await parseScorePdf(loadFixture("open_satb.pdf"));
     // 마디 번호가 1부터 연속이어야 하고, 시스템 경계에서 리셋되지 않아야 한다
-    const measures = [...new Set(result.parts.Soprano.map(n => n.m))].sort((a, b) => a - b);
+    const measures = [...new Set(result.parts.Soprano.map((n) => n.m))].sort((a, b) => a - b);
     expect(measures[0]).toBe(1);
     expect(result.measureCount).toBeGreaterThanOrEqual(measures.length);
     // 중간에 빈 마디 없이 연속
@@ -151,7 +151,7 @@ describe("파서 품질 게이트", () => {
   it("정상 악보에서는 error 등급 경고를 내지 않는다", async () => {
     for (const name of ["closed_chord.pdf", "closed_stems.pdf", "open_satb.pdf"]) {
       const result = await parseScorePdf(loadFixture(name));
-      const errors = result.warnings.filter(w => w.severity === "error");
+      const errors = result.warnings.filter((w) => w.severity === "error");
       expect(errors, `${name} error 경고`).toHaveLength(0);
     }
   });
@@ -217,7 +217,7 @@ describe("옥타브 이조 음자리표", () => {
     const gt = loadTruth("ground_truth_tenor_octave.json");
 
     for (const part of PARTS) {
-      const got = result.parts[part].map(n => n.p);
+      const got = result.parts[part].map((n) => n.p);
       expect(got, `${part} 음높이 배열`).toEqual(gt[part]);
     }
   });
@@ -233,7 +233,7 @@ describe("옥타브 이조 음자리표", () => {
   it("테너가 알토보다 낮다", async () => {
     const result = await parseScorePdf(loadFixture("tenor_octave.pdf"));
     const med = (ns: { p: number }[]) =>
-      [...ns.map(n => n.p)].sort((a, b) => a - b)[Math.floor(ns.length / 2)];
+      [...ns.map((n) => n.p)].sort((a, b) => a - b)[Math.floor(ns.length / 2)];
     expect(med(result.parts.Tenor)).toBeLessThan(med(result.parts.Alto));
   });
 });
@@ -251,7 +251,7 @@ describe("옥타브 이조 음자리표", () => {
 describe("넓은 테너·베이스 간격", () => {
   it("동리듬 악보에 POLYRHYTHM_SUSPECTED를 붙이지 않는다", async () => {
     const result = await parseScorePdf(loadFixture("wide_tb.pdf"));
-    const codes = result.warnings.map(w => w.code);
+    const codes = result.warnings.map((w) => w.code);
     expect(codes, "경고 목록").not.toContain("POLYRHYTHM_SUSPECTED");
   });
 
@@ -259,7 +259,10 @@ describe("넓은 테너·베이스 간격", () => {
     const result = await parseScorePdf(loadFixture("wide_tb.pdf"));
     const gt = loadTruth("ground_truth_wide_tb.json");
     for (const part of PARTS) {
-      expect(result.parts[part].map(n => n.p), `${part} 음높이 배열`).toEqual(gt[part]);
+      expect(
+        result.parts[part].map((n) => n.p),
+        `${part} 음높이 배열`,
+      ).toEqual(gt[part]);
     }
   });
 
@@ -278,7 +281,7 @@ describe("넓은 테너·베이스 간격", () => {
 describe("성부별 리듬 차이", () => {
   it("마디가 부푼 악보에서 POLYRHYTHM_SUSPECTED가 뜬다", async () => {
     const result = await parseScorePdf(loadFixture("closed_hard.pdf"));
-    const codes = result.warnings.map(w => w.code);
+    const codes = result.warnings.map((w) => w.code);
     expect(codes, "경고 목록").toContain("POLYRHYTHM_SUSPECTED");
   });
 });
@@ -392,7 +395,7 @@ describe("마디 좌표", () => {
         const ordered = [...boxes].sort((a, b) => a.measure - b.measure);
         for (let i = 1; i < ordered.length; i++) {
           expect(ordered[i].x, `${name} ${key} m${ordered[i].measure} x`).toBeGreaterThan(
-            ordered[i - 1].x
+            ordered[i - 1].x,
           );
         }
       }
@@ -402,13 +405,13 @@ describe("마디 좌표", () => {
   it("시스템이 바뀌면 y가 증가하고 x가 되돌아간다", async () => {
     // open_satb는 2시스템이다. 이 성질을 볼 수 있는 유일한 픽스처다.
     const r = await parseScorePdf(loadFixture("open_satb.pdf"));
-    const systems = [...new Set(r.measureBoxes.map(b => b.system))].sort();
+    const systems = [...new Set(r.measureBoxes.map((b) => b.system))].sort();
     expect(systems.length, "시스템 수").toBeGreaterThan(1);
 
     const firstOf = (sys: number) =>
-      r.measureBoxes.filter(b => b.system === sys).sort((a, b) => a.measure - b.measure)[0];
+      r.measureBoxes.filter((b) => b.system === sys).sort((a, b) => a.measure - b.measure)[0];
     const lastOf = (sys: number) =>
-      r.measureBoxes.filter(b => b.system === sys).sort((a, b) => b.measure - a.measure)[0];
+      r.measureBoxes.filter((b) => b.system === sys).sort((a, b) => b.measure - a.measure)[0];
 
     for (let i = 1; i < systems.length; i++) {
       const prevLast = lastOf(systems[i - 1]);
@@ -433,7 +436,7 @@ describe("마디 좌표", () => {
           const overlap = prevRight - ordered[i].x;
           // 마디는 맞닿아 있다. 폭의 10%를 넘게 겹치면 경계 계산이 틀린 것이다
           expect(overlap, `${name} ${key} m${ordered[i].measure} 겹침`).toBeLessThan(
-            ordered[i].w * 0.1
+            ordered[i].w * 0.1,
           );
         }
       }

@@ -67,7 +67,7 @@ export type RawRest = {
 export function yToMidi(
   y: number,
   staff: Staff,
-  accidental: number | null
+  accidental: number | null,
 ): { midi: number; name: string; step: number } {
   const half = staff.spacing / 2;
   // 맨 아래 줄에서 몇 계단 위인가 (반올림으로 줄/칸 판정)
@@ -87,7 +87,8 @@ export function yToMidi(
   // MIDI: C-1 = 0 이므로 옥타브 n의 C는 (n+1)*12
   const midi = (octave + 1) * 12 + STEP_SEMITONE[stepInOctave] + alter;
 
-  const accStr = alter === 1 ? "#" : alter === -1 ? "b" : alter === 2 ? "##" : alter === -2 ? "bb" : "";
+  const accStr =
+    alter === 1 ? "#" : alter === -1 ? "b" : alter === 2 ? "##" : alter === -2 ? "bb" : "";
   return { midi, name: `${letter}${accStr}${octave}`, step: absStep };
 }
 
@@ -114,7 +115,7 @@ export function detectBarlines(vLines: Line[], staff: Staff): number[] {
   const tol = staff.spacing * 0.35;
 
   const candidates = vLines
-    .filter(l => {
+    .filter((l) => {
       const top = Math.max(l.y1, l.y2);
       const bot = Math.min(l.y1, l.y2);
       return (
@@ -123,7 +124,7 @@ export function detectBarlines(vLines: Line[], staff: Staff): number[] {
         Math.abs(top - bot - h) < tol
       );
     })
-    .map(l => ({ x: (l.x1 + l.x2) / 2, w: l.width }));
+    .map((l) => ({ x: (l.x1 + l.x2) / 2, w: l.width }));
 
   if (candidates.length === 0) return [];
 
@@ -135,11 +136,11 @@ export function detectBarlines(vLines: Line[], staff: Staff): number[] {
   //
   // 대신 **최빈 두께**를 쓴다. 마디선은 같은 두께로 여러 개 반복되고,
   // 기둥은 그보다 얇다. 최빈값 이상만 남기면 기둥은 빠지고 겹세로줄은 남는다.
-  const widths = candidates.map(c => c.w).sort((a, b) => a - b);
+  const widths = candidates.map((c) => c.w).sort((a, b) => a - b);
   const modeW = mostCommon(widths, 0.15);
-  const bars = candidates.filter(c => c.w >= modeW * 0.75);
+  const bars = candidates.filter((c) => c.w >= modeW * 0.75);
 
-  const xs = bars.map(c => c.x);
+  const xs = bars.map((c) => c.x);
 
   // 중복 제거 (굵은 마디선은 여러 선으로 그려진다)
   xs.sort((a, b) => a - b);
@@ -193,8 +194,8 @@ export function unifyBarlines(perStaff: number[][], spacing: number): number[] {
   // 과반 오선에서 검출된 마디선만 채택 (오검출 억제)
   const minVotes = Math.max(1, Math.ceil(perStaff.length / 2));
   return clusters
-    .filter(c => c.length >= minVotes)
-    .map(c => c.reduce((s, v) => s + v, 0) / c.length);
+    .filter((c) => c.length >= minVotes)
+    .map((c) => c.reduce((s, v) => s + v, 0) / c.length);
 }
 
 /**
@@ -224,7 +225,7 @@ export function parseNotesOnStaff(
   neighborBounds?: {
     above?: { bottomY: number; topY: number };
     below?: { bottomY: number; topY: number };
-  }
+  },
 ): { notes: RawNote[]; rests: RawRest[] } {
   const sp = staff.spacing;
 
@@ -262,12 +263,12 @@ export function parseNotesOnStaff(
     const nb = neighborBounds?.[key];
     if (!nb) continue;
     neighborOwnX[key] = glyphs
-      .filter(g => g.kind?.type === "notehead" && g.y >= nb.bottomY && g.y <= nb.topY)
-      .map(g => g.x);
+      .filter((g) => g.kind?.type === "notehead" && g.y >= nb.bottomY && g.y <= nb.topY)
+      .map((g) => g.x);
   }
 
   const hasNeighborNoteAt = (x: number, key: "above" | "below"): boolean =>
-    neighborOwnX[key].some(nx => Math.abs(nx - x) < sp * 0.8);
+    neighborOwnX[key].some((nx) => Math.abs(nx - x) < sp * 0.8);
 
   const belongsToThisStaff = (y: number, x: number): boolean => {
     if (y < yMin || y > yMax) return false;
@@ -295,11 +296,11 @@ export function parseNotesOnStaff(
   const musicStartX = findMusicStartX(staff, glyphs);
 
   const heads = glyphs.filter(
-    g =>
+    (g) =>
       g.kind?.type === "notehead" &&
       belongsToThisStaff(g.y, g.x) &&
       g.x >= musicStartX &&
-      g.x <= staff.x2 + sp
+      g.x <= staff.x2 + sp,
   );
 
   /*
@@ -314,17 +315,19 @@ export function parseNotesOnStaff(
    * 없는 것) 여기서는 첫 음표 왼쪽 2.6sp까지 여유를 준다.
    */
   const accs = glyphs.filter(
-    g =>
+    (g) =>
       g.kind?.type === "accidental" &&
       belongsToThisStaff(g.y, g.x) &&
-      g.x >= musicStartX - sp * 2.6
+      g.x >= musicStartX - sp * 2.6,
   );
 
   // 부점: 음표 오른쪽 근처
-  const dots = glyphs.filter(g => g.kind?.type === "dot" && belongsToThisStaff(g.y, g.x));
+  const dots = glyphs.filter((g) => g.kind?.type === "dot" && belongsToThisStaff(g.y, g.x));
 
   // 꼬리: 기둥 끝에 붙는다
-  const flags = glyphs.filter(g => g.kind?.type === "flag" && g.y >= yMin - sp * 3 && g.y <= yMax + sp * 3);
+  const flags = glyphs.filter(
+    (g) => g.kind?.type === "flag" && g.y >= yMin - sp * 3 && g.y <= yMax + sp * 3,
+  );
 
   // 빔: 굵은 수평 사각형.
   //
@@ -335,7 +338,7 @@ export function parseNotesOnStaff(
   //
   // 기둥과의 구분은 종횡비로 한다. 빔은 가로로 길고(w > h), 기둥은 세로로
   // 길다(h >> w). 실측에서 기둥은 0.05sp × 5.23sp 였으므로 명확히 갈린다.
-  const beams = rects.filter(r => {
+  const beams = rects.filter((r) => {
     const cy = r.y + r.h / 2;
     return (
       r.w > sp * 1.2 &&
@@ -348,14 +351,10 @@ export function parseNotesOnStaff(
   });
 
   // 기둥: 얇은 세로 사각형 (실측 0.05sp × 5.23sp)
-  const stems = rects.filter(r => {
+  const stems = rects.filter((r) => {
     const cx = r.x + r.w / 2;
     return (
-      r.w <= sp * 0.6 &&
-      r.h > sp * 1.2 &&
-      r.h > r.w * 3 &&
-      cx >= musicStartX &&
-      cx <= staff.x2 + sp
+      r.w <= sp * 0.6 && r.h > sp * 1.2 && r.h > r.w * 3 && cx >= musicStartX && cx <= staff.x2 + sp
     );
   });
 
@@ -417,11 +416,11 @@ export function parseNotesOnStaff(
      */
     const own = accs
       .filter(
-        a =>
+        (a) =>
           Math.abs(a.y - h.y) < sp / 3 &&
           a.x < h.x &&
           h.x - a.x < sp * 2.6 &&
-          measureOf(a.x) === measure
+          measureOf(a.x) === measure,
       )
       .sort((a, b) => b.x - a.x)[0];
 
@@ -442,13 +441,13 @@ export function parseNotesOnStaff(
 
     // 부점: 같은 높이(±spacing/2), 오른쪽 spacing*2 이내
     const dotCount = dots.filter(
-      d => Math.abs(d.y - h.y) < sp * 0.7 && d.x > h.x && d.x - h.x < sp * 2.2
+      (d) => Math.abs(d.y - h.y) < sp * 0.7 && d.x > h.x && d.x - h.x < sp * 2.2,
     ).length;
 
     const baseDuration = (h.kind as { duration: number }).duration;
 
     // 기둥 찾기: 음표머리 좌우 끝에 붙는다
-    const stem = stems.find(s => {
+    const stem = stems.find((s) => {
       const cx = s.x + s.w / 2;
       const nearX = Math.abs(cx - h.x) < sp * 1.4;
       if (!nearX) return false;
@@ -463,9 +462,9 @@ export function parseNotesOnStaff(
       const stemBottom = stem.y;
       const cx = stem.x + stem.w / 2;
       const f = flags.find(
-        g =>
+        (g) =>
           Math.abs(g.x - cx) < sp * 1.6 &&
-          (Math.abs(g.y - stemTop) < sp * 1.6 || Math.abs(g.y - stemBottom) < sp * 1.6)
+          (Math.abs(g.y - stemTop) < sp * 1.6 || Math.abs(g.y - stemBottom) < sp * 1.6),
       );
       if (f) flagCount = (f.kind as { count: number }).count;
 
@@ -473,21 +472,19 @@ export function parseNotesOnStaff(
       if (flagCount === 0) {
         // 빔은 기울어질 수 있으므로, 기둥 X에서의 빔 Y를 선형 보간으로 추정한다.
         // box 상하 어느 쪽이 이 기둥에 걸리는지 알 수 없어 범위로 판정한다.
-        const overlapping = beams.filter(b => {
+        const overlapping = beams.filter((b) => {
           const withinX = cx >= b.x - sp * 0.4 && cx <= b.x + b.w + sp * 0.4;
           if (!withinX) return false;
           // 빔 box가 기둥 끝을 포함하는지 확인 (기울기 허용)
           const pad = sp * 0.8;
           const bTop = b.y + b.h + pad;
           const bBot = b.y - pad;
-          return (
-            (stemTop <= bTop && stemTop >= bBot) || (stemBottom <= bTop && stemBottom >= bBot)
-          );
+          return (stemTop <= bTop && stemTop >= bBot) || (stemBottom <= bTop && stemBottom >= bBot);
         });
         // 같은 위치에 겹친 빔의 개수가 곧 분할 수준이다 (1개=8분, 2개=16분).
         // 다만 서로 다른 그룹의 빔이 X범위만 겹칠 수 있으므로 Y로 한 번 더 묶는다.
         if (overlapping.length > 0) {
-          const ys = overlapping.map(b => b.y + b.h / 2).sort((a, b) => a - b);
+          const ys = overlapping.map((b) => b.y + b.h / 2).sort((a, b) => a - b);
           let layers = 1;
           for (let k = 1; k < ys.length; k++) {
             if (ys[k] - ys[k - 1] > sp * 0.35) layers++;
@@ -536,16 +533,16 @@ export function parseNotesOnStaff(
    */
   const rests: RawRest[] = [];
   const restGlyphs = glyphs.filter(
-    g =>
+    (g) =>
       g.kind?.type === "rest" &&
       belongsToThisStaff(g.y, g.x) &&
       g.x >= musicStartX &&
-      g.x <= staff.x2 + sp
+      g.x <= staff.x2 + sp,
   );
 
   for (const r of restGlyphs) {
     const dotCount = dots.filter(
-      d => Math.abs(d.y - r.y) < sp * 0.9 && d.x > r.x && d.x - r.x < sp * 2.2
+      (d) => Math.abs(d.y - r.y) < sp * 0.9 && d.x > r.x && d.x - r.x < sp * 2.2,
     ).length;
 
     let duration = (r.kind as { duration: number }).duration;
@@ -582,11 +579,13 @@ function findMusicStartX(staff: Staff, glyphs: Glyph[]): number {
   const sp = staff.spacing;
   let x = staff.x1;
 
-  const inStaffZone = (g: Glyph) =>
-    g.y >= staff.bottomY - sp * 3 && g.y <= staff.topY + sp * 3;
+  const inStaffZone = (g: Glyph) => g.y >= staff.bottomY - sp * 3 && g.y <= staff.topY + sp * 3;
 
   // 음자리표 오른쪽 끝
-  const clefs = glyphs.filter(g => g.kind?.type === "clef" && inStaffZone(g) && g.x < staff.x1 + (staff.x2 - staff.x1) * 0.25);
+  const clefs = glyphs.filter(
+    (g) =>
+      g.kind?.type === "clef" && inStaffZone(g) && g.x < staff.x1 + (staff.x2 - staff.x1) * 0.25,
+  );
   for (const c of clefs) x = Math.max(x, c.x + sp * 2.2);
 
   /*
@@ -603,21 +602,17 @@ function findMusicStartX(staff: Staff, glyphs: Glyph[]): number {
    * 임시표는 반드시 자기 음표를 오른쪽에 데리고 있다. 따라서
    * "오른쪽 2.6sp 안에 같은 높이의 음표머리가 있으면 조표가 아니다".
    */
-  const heads = glyphs.filter(g => g.kind?.type === "notehead" && inStaffZone(g));
+  const heads = glyphs.filter((g) => g.kind?.type === "notehead" && inStaffZone(g));
   const isKeySignature = (a: Glyph) =>
-    !heads.some(h => h.x > a.x && h.x - a.x < sp * 2.6 && Math.abs(h.y - a.y) < sp / 3);
+    !heads.some((h) => h.x > a.x && h.x - a.x < sp * 2.6 && Math.abs(h.y - a.y) < sp / 3);
 
   const keyAccs = glyphs.filter(
-    g =>
-      g.kind?.type === "accidental" &&
-      inStaffZone(g) &&
-      g.x < x + sp * 6 &&
-      isKeySignature(g)
+    (g) => g.kind?.type === "accidental" && inStaffZone(g) && g.x < x + sp * 6 && isKeySignature(g),
   );
   for (const a of keyAccs) x = Math.max(x, a.x + sp * 1.6);
 
   // 박자표 오른쪽 끝
-  const ts = glyphs.filter(g => g.kind?.type === "timesig" && inStaffZone(g));
+  const ts = glyphs.filter((g) => g.kind?.type === "timesig" && inStaffZone(g));
   for (const t of ts) x = Math.max(x, t.x + sp * 3);
 
   return x;
@@ -651,11 +646,7 @@ export type TimedEvent = {
  * 이유는 악보가 시간 순서대로 왼쪽에서 오른쪽으로 배치되기 때문이다.
  * X좌표 비례로 계산하면 조판 여백 때문에 틀린다.
  */
-export function toTimedEvents(
-  notes: RawNote[],
-  rests: RawRest[],
-  spacing: number
-): TimedEvent[] {
+export function toTimedEvents(notes: RawNote[], rests: RawRest[], spacing: number): TimedEvent[] {
   if (notes.length === 0 && rests.length === 0) return [];
 
   // X로 묶기 (화음 판정 허용 오차)
@@ -691,13 +682,12 @@ export function toTimedEvents(
      * 여기서는 **잘라 냈다는 사실을 기록**해 두고 상위에서 경고로 알린다.
      * docs/OMR.md 5.4 · docs/tasks/P1.md 3.6
      */
-    const durs = s.notes.map(n => n.duration);
+    const durs = s.notes.map((n) => n.duration);
     s.duration = Math.min(...durs);
 
     if (durs.length > 1 && Math.max(...durs) - s.duration > 0.01) {
       s.mixedRhythm = true;
     }
-
   }
 
   /*
@@ -718,9 +708,7 @@ export function toTimedEvents(
    * 박을 밀고 있다. 둘 다 세면 그만큼 겹쳐 밀린다.
    */
   for (const r of [...rests].sort((a, b) => a.measure - b.measure || a.x - b.x)) {
-    const sameSpot = slots.find(
-      s => s.measure === r.measure && Math.abs(s.x - r.x) <= xTol
-    );
+    const sameSpot = slots.find((s) => s.measure === r.measure && Math.abs(s.x - r.x) <= xTol);
     if (sameSpot) {
       // 음표 슬롯이면 그대로 두고, 쉼표 슬롯이면 짧은 쪽을 채택한다.
       if (sameSpot.notes.length === 0) {
