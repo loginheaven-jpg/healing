@@ -212,3 +212,20 @@ Railway 쪽에서도 **Settings → Networking → Custom Domain** 에 같은 �
 | 브라우저 업로드가 CORS 로 막힘 | 1.3 을 빼먹었습니다. 서명 URL 이 맞아도 브라우저가 막습니다 |
 | `pnpm r2:smoke` 가 403 | 토큰 권한이 버킷에 걸려 있지 않거나, 엔드포인트가 계정 ID 와 다릅니다 |
 | 헬스체크 실패 | `PORT` 를 직접 넣으셨을 수 있습니다. Railway 가 주입하게 두십시오 |
+
+---
+
+## 부록 — 실제로 겪은 것 (2026-08-08)
+
+문서대로 하다가 걸린 곳과 해결을 그대로 남깁니다.
+
+| 겪은 것 | 원인 | 해결 |
+| --- | --- | --- |
+| Postgres 를 추가하니 앞서 만들어진 서비스 카드가 사라짐 | Railway 는 **Deploy 를 눌러 Apply 하기 전까지 확정되지 않습니다.** 그 사이 화면을 옮기면 staged 변경이 날아갑니다 | 서비스를 만들면 **먼저 Deploy 로 확정**하고, 설정은 그 뒤에 손봅니다 |
+| 첫 빌드가 2초 만에 실패 | Config-as-code 를 지정하지 않아 저장소 루트를 그냥 빌드하려 했습니다. 모노레포라 루트에는 빌드할 앱이 없습니다 | Settings 에서 `Filter Settings...` 에 `config` 를 쳐서 찾아 `/apps/web/railway.json` 지정 |
+| `ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY` | Dockerfile 의 runtime 단계가 dev 의존성이 든 `node_modules` 를 복사한 뒤 `pnpm install --prod` 로 지우려 했는데, pnpm 이 삭제 여부를 묻다가 TTY 가 없어 중단 | runtime 단계에서 **매니페스트만 받아 빈 디렉터리에 prod 의존성을 처음부터 설치**. `CI=true` 도 함께 |
+| Regions & Replicas 가 UI 에서 잠김 | `railway.json` 에 `numReplicas` 가 있으면 Railway 가 그 항목을 설정 파일 소관으로 보고 화면 조작을 막습니다 | 리전을 설정 파일에 명시 — `deploy.multiRegionConfig["asia-southeast1-eqsg3a"]` |
+| Service Name · Config-as-code 칸이 안 보임 | Settings 가 길어 아래에 있습니다. 이름은 Settings 안이 아니라 패널 상단 제목을 눌러 고칩니다 | `Filter Settings...` 로 걸러 찾습니다 |
+
+**리전은 Postgres 와 맞추십시오.** 어긋나면 DB 질의마다 대륙을 왕복합니다.
+이 프로젝트는 셋 다 **Southeast Asia (Singapore)** 입니다.
