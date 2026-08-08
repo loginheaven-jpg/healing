@@ -5,6 +5,8 @@
     "outDir": "./dist",
     "tsBuildInfoFile": "./dist/.tsbuildinfo"
   },
+  "references": [{ "path": "../schema" }],
+  "//": "drizzle.config.ts 는 rootDir 밖이므로 넣지 않는다. drizzle-kit 이 자체 로더로 읽는다. 넣으면 tsc 가 산출물을 소스 옆에 떨군다 — docs/reports/P1.md 4.3",
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.test.ts", "dist"]
 }

@@ -18,6 +18,15 @@ coverage/
 **/src/**/*.js
 **/src/**/*.js.map
 
+# 설정 파일도 같은 사고를 낸다. src 아래가 아니라 패키지 뿌리에 있어서
+# 위 규칙이 덮지 못한다. 실제로 drizzle.config.ts 를 tsconfig include 에
+# 잠깐 넣었다가 .js/.d.ts 가 떨어졌다(P2 1단계에서 린트가 즉시 잡았다).
+**/*.config.js
+!eslint.config.js
+**/*.config.d.ts
+**/*.config.js.map
+**/*.config.d.ts.map
+
 # 환경변수. 실제 값은 Railway 변수로만 관리합니다. (.env.example 만 저장소에 둡니다)
 .env
 .env.*
