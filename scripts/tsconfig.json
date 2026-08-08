@@ -1,4 +1,8 @@
 {
+  // 워크스페이스 패키지는 **반드시 이름으로** 임포트한다(@healing/omr-vector).
+  // 경로로 소스를 직접 가리키면 그 파일들이 이 프로젝트에 딸려 들어오는데,
+  // rootDir 밖이라 outDir 아래에 놓을 수 없어 tsc 가 소스 옆에 산출물을
+  // 떨군다. 실제로 겪었다 — .gitignore 의 설명 참조.
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": ".",

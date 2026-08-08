@@ -4,6 +4,20 @@ build/
 coverage/
 *.tsbuildinfo
 
+# tsc 산출물이 소스 옆에 떨어지는 사고를 막는 안전망.
+#
+# 실제로 한 번 일어났다. scripts/baseline.mts 가 omr-vector 소스를 경로로
+# 직접 임포트하자, rootDir 밖의 파일이라 outDir 아래에 놓을 수 없어 tsc 가
+# packages/omr-vector/src/ 에 .d.ts 16개를 떨궜고 그대로 커밋됐다(5c800b7).
+# 그 파일들에는 낡은 WarningCode 가 들어 있어 "두 정의 공존" 이 됐다.
+#
+# 근본 원인은 막았다 — 워크스페이스 패키지는 반드시 이름으로 임포트한다.
+# 이 규칙은 그것이 다시 뚫렸을 때의 두 번째 방어선이다.
+**/src/**/*.d.ts
+**/src/**/*.d.ts.map
+**/src/**/*.js
+**/src/**/*.js.map
+
 # 환경변수. 실제 값은 Railway 변수로만 관리합니다. (.env.example 만 저장소에 둡니다)
 .env
 .env.*
