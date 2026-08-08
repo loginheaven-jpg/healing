@@ -12,7 +12,16 @@ import { detectBarlines, parseNotesOnStaff, toTimedEvents, unifyBarlines, type T
 import { extractPdfGeometry, type PageGeometry } from "./pdfExtract.js";
 import { assignClefs, detectStaves } from "./staffDetect.js";
 import { groupIntoSystems, readKeySignature, readTimeSignature } from "./systemGroup.js";
-import type { LayoutType, Note, Part, ParseResult, Rest, Staff, Warning } from "./types.js";
+import type {
+  LayoutType,
+  Note,
+  OctaveSource,
+  Part,
+  ParseResult,
+  Rest,
+  Staff,
+  Warning,
+} from "./types.js";
 import {
   PART_ORDER,
   checkMeasureDurations,
@@ -82,12 +91,18 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
   let timeSignature = { numerator: 4, denominator: 4 };
   let timeSigConfident = false;
   let firstSystemSeen = false;
+  /*
+   * 첫 시스템의 오선별 "옥타브를 음자리표가 확정했는가".
+   * 파트 배정은 형태에 따라 달라지므로 오선 단위로 모아 두었다가 뒤에서 옮긴다.
+   */
+  let octaveByStaff: boolean[] = [];
 
   for (const page of extracted.pages) {
     const bare = detectStaves(page.hLines, page.width);
     if (bare.length === 0) continue;
 
-    const { clefs, unrecognized } = assignClefs(bare, page.glyphs, page.texts);
+    const { clefs, unrecognized, octaveByClef } = assignClefs(bare, page.glyphs, page.texts);
+    if (!firstSystemSeen) octaveByStaff = octaveByClef;
     if (unrecognized.length > 0 && !firstSystemSeen) {
       warnings.push({
         code: "CLEF_UNRECOGNIZED",
@@ -219,6 +234,31 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
   const normalized = normalizeOctave(parts);
   warnings.push(...normalized.warnings);
 
+  /*
+   * 옥타브를 무엇이 결정했는지 기록한다.
+   *
+   * 음자리표의 옥타브 표시를 읽었으면 "clef", 음역을 보고 추측했으면
+   * "range-heuristic"이다. 둘을 구분하지 않으면 "정확한 결과"와 "우연히
+   * 맞은 결과"를 가릴 수 없다. docs/tasks/P1.md 3.4
+   *
+   * 오선 → 파트 대응은 형태에 따라 다르다.
+   *   closed-2staff : 상단 오선 → S·A,  하단 오선 → T·B
+   *   open-4staff   : 오선 i → PART_ORDER[i]
+   *   single        : 상단 오선 → S
+   */
+  const staffOf: Record<Part, number> =
+    layout === "closed-2staff"
+      ? { Soprano: 0, Alto: 0, Tenor: 1, Bass: 1 }
+      : { Soprano: 0, Alto: 1, Tenor: 2, Bass: 3 };
+
+  const octaveSource = Object.fromEntries(
+    PART_ORDER.map(p => {
+      if (normalized.shifted[p]) return [p, "range-heuristic" as OctaveSource];
+      const si = useStaves ? (useStaves[staffOf[p]] ?? staffOf[p]) : staffOf[p];
+      return [p, (octaveByStaff[si] ? "clef" : "range-heuristic") as OctaveSource];
+    })
+  ) as Record<Part, OctaveSource>;
+
   // 이상 검출 게이트
   warnings.push(...checkPartBalance(normalized.parts, layout));
   const durCheck = checkMeasureDurations(normalized.parts, rests, timeSignature);
@@ -240,6 +280,7 @@ export async function parseScorePdf(data: Uint8Array): Promise<ParseResult> {
   return {
     parts: normalized.parts,
     rests,
+    octaveSource,
     layout,
     keyFifths,
     timeSignature,

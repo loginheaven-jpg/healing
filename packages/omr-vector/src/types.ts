@@ -60,7 +60,27 @@ export type GlyphKind =
   | { type: "brace" }                              // 보표 묶음 표시
   | { type: "other" };
 
-export type ClefType = "treble" | "bass" | "treble8vb" | "alto" | "tenor";
+export type ClefType =
+  | "treble"
+  | "treble8va"
+  | "treble8vb"
+  | "treble15mb"
+  | "bass"
+  | "bass8vb"
+  | "alto"
+  | "tenor";
+
+/**
+ * 그 파트의 옥타브를 무엇이 결정했는가. 진단용이며 사용자에게 보이지 않는다.
+ *
+ *   clef            — 음자리표의 옥타브 표시를 읽어 확정했다. 이것이 정상이다.
+ *   range-heuristic — 음자리표로 알 수 없어 음역을 보고 추측했다.
+ *                     맞을 수도 있지만 근거가 약하다.
+ *
+ * 둘을 구분해 기록하지 않으면 "정확한 결과"와 "우연히 맞은 결과"를 가릴 수 없다.
+ * docs/tasks/P1.md 3.4
+ */
+export type OctaveSource = "clef" | "range-heuristic";
 
 /** 검출된 직선 */
 export type Line = {
@@ -154,6 +174,8 @@ export type ParseResult = {
   parts: Record<Part, Note[]>;
   /** 파트별 쉼표. 재생에는 쓰이지 않지만 박 위치 검증에 필요하다 */
   rests: Record<Part, Rest[]>;
+  /** 진단용: 파트마다 옥타브를 무엇이 결정했는지 */
+  octaveSource: Record<Part, OctaveSource>;
   /** 보표 구조 */
   layout: LayoutType;
   /** 조 (fifths: -7..+7) */

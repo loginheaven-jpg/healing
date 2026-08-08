@@ -88,9 +88,18 @@ export function assignClefs(
   staves: Omit<Staff, "clef" | "keyAlters" | "keyFifths">[],
   glyphs: Glyph[],
   texts: { x: number; y: number; text: string; size: number }[]
-): { clefs: ClefType[]; unrecognized: number[] } {
+): { clefs: ClefType[]; unrecognized: number[]; octaveByClef: boolean[] } {
   const clefs: ClefType[] = [];
   const unrecognized: number[] = [];
+  /**
+   * 오선별: 옥타브를 음자리표가 확정했는가.
+   *
+   * 음자리표 글리프를 실제로 읽었으면 참이다. 옥타브 이동 표시("8")가
+   * 없는 평범한 treble·bass도 참이다 — 표시가 없다는 것 자체가 이동이
+   * 없다는 뜻이기 때문이다. 거짓은 음자리표를 못 찾아 오선 위치로
+   * 추정한 경우뿐이며, 그때는 옥타브 근거가 음자리표가 아니다.
+   */
+  const octaveByClef: boolean[] = [];
 
   for (let si = 0; si < staves.length; si++) {
     const st = staves[si];
@@ -116,6 +125,8 @@ export function assignClefs(
       } else {
         clefs.push("treble");
       }
+      // 위치로 추정한 것이므로 음자리표가 확정한 것이 아니다
+      octaveByClef.push(false);
       continue;
     }
 
@@ -123,23 +134,42 @@ export function assignClefs(
     cands.sort((a, b) => a.x - b.x);
     let clef = (cands[0].kind as { type: "clef"; clef: ClefType }).clef;
 
-    // 옥타브 이동 표시("8")가 음자리표 아래에 있는지 확인
+    /*
+     * 옥타브 이동 표시.
+     *
+     * LilyPond의 clef "treble_8"은 통합 글리프가 아니라 clefs.G 글리프 +
+     * 별도의 "8" 문자로 그려진다. 그 "8"은 **글리프가 아니라 텍스트**로
+     * 나온다(open_satb.pdf 실측: 테너 clefs.G@x75,y673 아래 "8"@x78,y655).
+     * 글리프 목록만 보면 옥타브 표시가 없는 것처럼 보인다.
+     *
+     * x 허용 오차를 좁게 두는 것이 중요하다. 마디 번호도 오선 근처의
+     * 숫자 텍스트인데, 그것은 음자리표보다 왼쪽에 놓인다. 실측에서
+     * 마디 번호 "5"가 clef보다 1.7칸 왼쪽이었고 옥타브 "8"은 0.6칸
+     * 오른쪽이었다. 내용 검사("8"/"15")와 함께 쓰면 충분히 갈린다.
+     */
+    const cg = cands[0];
+    const octaveMark = (want: string, side: "below" | "above"): boolean =>
+      texts.some(t => {
+        if (t.text !== want) return false;
+        if (Math.abs(t.x - cg.x) > st.spacing * 1.6) return false;
+        return side === "below"
+          ? t.y < st.bottomY && t.y > st.bottomY - st.spacing * 4
+          : t.y > st.topY && t.y < st.topY + st.spacing * 4;
+      });
+
     if (clef === "treble") {
-      const cg = cands[0];
-      const has8 = texts.some(
-        t =>
-          t.text === "8" &&
-          Math.abs(t.x - cg.x) < st.spacing * 3 &&
-          t.y < st.bottomY &&
-          t.y > st.bottomY - st.spacing * 3.5
-      );
-      if (has8) clef = "treble8vb";
+      if (octaveMark("15", "below")) clef = "treble15mb";
+      else if (octaveMark("8", "below")) clef = "treble8vb";
+      else if (octaveMark("8", "above")) clef = "treble8va";
+    } else if (clef === "bass" && octaveMark("8", "below")) {
+      clef = "bass8vb";
     }
 
+    octaveByClef.push(true);
     clefs.push(clef);
   }
 
-  return { clefs, unrecognized };
+  return { clefs, unrecognized, octaveByClef };
 }
 
 /**
@@ -163,6 +193,12 @@ export const CLEF_REF: Record<ClefType, { refMidi: number; refStep: number }> = 
   treble: { refMidi: 64, refStep: 4 * 7 + 2 },
   // 맨 아래 줄 = E3 (한 옥타브 아래로 읽음). 3×7 + 2 = 23
   treble8vb: { refMidi: 52, refStep: 3 * 7 + 2 },
+  // 한 옥타브 위로 읽음. 맨 아래 줄 = E5
+  treble8va: { refMidi: 76, refStep: 5 * 7 + 2 },
+  // 두 옥타브 아래로 읽음. 맨 아래 줄 = E2
+  treble15mb: { refMidi: 40, refStep: 2 * 7 + 2 },
+  // 낮은음자리표 한 옥타브 아래. 맨 아래 줄 = G1
+  bass8vb: { refMidi: 31, refStep: 1 * 7 + 4 },
   // 맨 아래 줄 = G2. 2×7 + G(4) = 18
   bass: { refMidi: 43, refStep: 2 * 7 + 4 },
   // 알토 음자리표: 맨 아래 줄 = F3. 3×7 + F(3) = 24

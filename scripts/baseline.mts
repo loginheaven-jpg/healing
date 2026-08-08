@@ -74,6 +74,15 @@ function restCount(r: ParseResult): number | null {
   return PARTS.reduce((s, p) => s + (rests[p]?.length ?? 0), 0);
 }
 
+/** 옥타브를 무엇이 결정했는지. clef 여야 정상이다. docs/tasks/P1.md 3.4 */
+function octaveCell(r: ParseResult): string {
+  const src = (r as ParseResult & { octaveSource?: Record<Part, string> }).octaveSource;
+  if (!src) return "—";
+  const byClef = PARTS.filter((p) => r.parts[p].length > 0 && src[p] === "clef");
+  const heur = PARTS.filter((p) => r.parts[p].length > 0 && src[p] !== "clef");
+  return `clef:${byClef.map((p) => SHORT[p]).join("") || "없음"}${heur.length ? ` 추측:${heur.map((p) => SHORT[p]).join("")}` : ""}`;
+}
+
 function boxCount(r: ParseResult): number | null {
   const boxes = (r as ParseResult & { measureBoxes?: unknown[] }).measureBoxes;
   return boxes ? boxes.length : null;
@@ -108,16 +117,16 @@ async function main() {
   }
 
   console.log(
-    "| 픽스처 | 형태 | 조 | 박자 | 마디 | 신뢰도 | 파트별 음표(음역) | 쉼표 | 마디상자 | 경고 |",
+    "| 픽스처 | 형태 | 조 | 박자 | 마디 | 신뢰도 | 파트별 음표(음역) | 쉼표 | 옥타브근거 | 마디상자 | 경고 |",
   );
-  console.log("|---|---|---|---|---|---|---|---|---|---|");
+  console.log("|---|---|---|---|---|---|---|---|---|---|---|");
   for (const r of results) {
     const rests = restCount(r);
     const boxes = boxCount(r);
     console.log(
       `| \`${r.name}\` | ${r.layout} | ${r.keyFifths} | ` +
         `${r.timeSignature.numerator}/${r.timeSignature.denominator} | ${r.measureCount} | ` +
-        `${r.confidence} | ${partsCell(r)} | ${rests ?? "—"} | ${boxes ?? "—"} | ` +
+        `${r.confidence} | ${partsCell(r)} | ${rests ?? "—"} | ${octaveCell(r)} | ${boxes ?? "—"} | ` +
         `${r.warnings.map((w) => w.code).join(", ") || "없음"} |`,
     );
   }

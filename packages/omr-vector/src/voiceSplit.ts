@@ -359,9 +359,16 @@ export function splitOpenScore(
  */
 export function normalizeOctave(
   parts: Record<Part, Note[]>
-): { parts: Record<Part, Note[]>; warnings: Warning[] } {
+): { parts: Record<Part, Note[]>; warnings: Warning[]; shifted: Record<Part, boolean> } {
   const warnings: Warning[] = [];
   const out: Record<Part, Note[]> = { Soprano: [], Alto: [], Tenor: [], Bass: [] };
+  /** 음역 추측으로 옥타브를 옮긴 파트. 근거가 음자리표가 아님을 뜻한다. */
+  const shifted: Record<Part, boolean> = {
+    Soprano: false,
+    Alto: false,
+    Tenor: false,
+    Bass: false,
+  };
 
   for (const part of PART_ORDER) {
     const notes = parts[part];
@@ -403,12 +410,13 @@ export function normalizeOctave(
         detail: { median, shift: bestShift },
       });
       out[part] = notes.map(n => ({ ...n, p: n.p + bestShift }));
+      shifted[part] = true;
     } else {
       out[part] = notes;
     }
   }
 
-  return { parts: out, warnings };
+  return { parts: out, warnings, shifted };
 }
 
 /**
@@ -505,8 +513,11 @@ export function koPart(part: Part): string {
 export function koClef(clef: ClefType): string {
   return {
     treble: "높은음자리표",
-    bass: "낮은음자리표",
+    treble8va: "옥타브 높은 높은음자리표",
     treble8vb: "옥타브 낮은 높은음자리표",
+    treble15mb: "두 옥타브 낮은 높은음자리표",
+    bass: "낮은음자리표",
+    bass8vb: "옥타브 낮은 낮은음자리표",
     alto: "알토음자리표",
     tenor: "테너음자리표",
   }[clef];
